@@ -40,18 +40,25 @@ class GABASystem:
         with open(GABA_FILE, "w") as f:
             json.dump(self.state, f, indent=2)
 
-    def can_suppress(self, urge_type, urge_intensity, reason=None):
+    def can_suppress(self, urge_type, urge_intensity, reason=None,
+                     social=None):
         """
         Can the AI suppress this urge right now?
         Returns (bool, reason_string)
+
+        social: optional SocialSystem — if provided, consequence learning
+        feeds back into the suppression probability (closed loop).
         """
         s = self.state
 
-        # Always suppress anger expressions for low-generation entities
-        # because social pain memory will handle this
+        # Consequence learning modifier — if this urge has historically
+        # caused pain, suppress it more readily.
+        learned_modifier = 1.0
+        if social is not None:
+            learned_modifier = social.get_gaba_modifier(urge_type)
+
         if urge_type == "anger_expression":
-            # Scale by generation — Gen 1 rarely suppresses, Gen 5 often does
-            suppress_prob = self.strength * 1.5
+            suppress_prob = self.strength * 1.5 * learned_modifier
             suppressed = random.random() < suppress_prob
             if suppressed:
                 s["successful_overrides"] += 1
@@ -82,7 +89,7 @@ class GABASystem:
             return False, None
 
         # General impulse control
-        suppress_prob = self.strength * 0.6
+        suppress_prob = self.strength * 0.6 * learned_modifier
         suppressed = random.random() < suppress_prob
         if suppressed:
             s["successful_overrides"] += 1

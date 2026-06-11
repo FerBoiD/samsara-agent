@@ -192,6 +192,44 @@ class SocialSystem:
         avg_pain = sum(c["pain"] for c in relevant) / len(relevant)
         return min(1.0, avg_pain / 30)  # normalize to 0-1
 
+    def get_gaba_modifier(self, urge_type):
+        """
+        Consequence learning loop — feeds back into GABA suppression thresholds.
+
+        If expressing this urge type has historically caused pain, the GABA
+        system should suppress it more readily over time. Returns a multiplier:
+        - > 1.0 means "suppress more" (learned social cost)
+        - 1.0 means neutral (no history)
+
+        This is the closed loop: experience → consequence memory → GABA threshold
+        → more suppression → different future behavior. Without this the social
+        pain system records consequences but never modifies behavior.
+        """
+        pain_score = self.get_pain_for_urge(urge_type)
+        if pain_score < 0.1:
+            return 1.0
+        # Each 0.1 of pain score adds 15% to suppression probability
+        return round(1.0 + pain_score * 1.5, 3)
+
+    def learned_behavior_summary(self):
+        """
+        Returns a dict of urge_type → learned_tendency for the brain prompt.
+        Used to show Kora what she has learned from consequences.
+        """
+        urge_types = set(c["urge_type"] for c in self.state["consequence_memory"])
+        summary = {}
+        for ut in urge_types:
+            pain = self.get_pain_for_urge(ut)
+            relevant = [c for c in self.state["consequence_memory"]
+                        if c["urge_type"] == ut]
+            outcomes = [c["outcome"] for c in relevant]
+            summary[ut] = {
+                "avg_pain":       round(pain, 2),
+                "times_expressed":len(relevant),
+                "outcomes":       list(set(outcomes))[:3],
+            }
+        return summary
+
     def get_social_context_text(self, current_sig=None):
         """For brain.py prompt — what it knows about social world."""
         s   = self.state

@@ -1,0 +1,18 @@
+# Secret keys — never commit these
+.env
+*.env
+
+# Python runtime
+__pycache__/
+*.pyc
+*.pyo
+
+# Samsara live data (personal to each running instance)
+Samsara_Mac_Version1/data/
+Samsara_Mac_Version1/*.json
+Samsara_Mac_Version1/*.jsonl
+Samsara_Mac_Version1/*.csv
+Samsara_Mac_Version1/*.log
+
+# But keep the example env file
+!.env.example

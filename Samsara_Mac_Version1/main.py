@@ -51,10 +51,13 @@ def log(msg):
 # ----------------------------------------------------------
 #  SPEAK
 # ----------------------------------------------------------
-def speak(text, prefix="🤖", send_tg=True, blocking=False):
+def speak(text, prefix="🤖", send_tg=True, blocking=False,
+          dominant="neutral", cog_state="active", aging_phase="healthy"):
     if not text: return
-    if blocking: say(text)
-    else:        say_nonblocking(text)
+    if blocking: say(text, dominant=dominant, cog_state=cog_state,
+                     aging_phase=aging_phase)
+    else:        say_nonblocking(text, dominant=dominant, cog_state=cog_state,
+                                 aging_phase=aging_phase)
     if send_tg:  send(f"{prefix} {text}")
     log(f"[{prefix}] {text}")
 
@@ -364,12 +367,24 @@ def main():
                 )
 
             # Observatory (live dashboard + milestone detection)
-            log_tick(ds, ns_full, emotions.summary(), sleep.summary(),
-                     {}, ven.summary(), {}, pred.summary(), social.summary())
+            sleep_sum = sleep.summary()
+            pred_sum  = pred.summary()
+            soc_sum   = social.summary()
+            emo_sum   = emotions.summary()
+            ven_sum   = ven.summary()
+            gaba_sum  = gaba.summary()
+
+            log_tick(ds, ns_full, emo_sum, sleep_sum,
+                     {}, ven_sum, gaba_sum, pred_sum, soc_sum)
             log_surprise(surprise, is_delight, is_fear, ds)
-            check_milestones(ds, ns_full, emotions.summary(), social.summary(),
-                             {}, {}, ven.summary(),
-                             drives.state["cognition"]["total_interactions"])
+            # Pass circadian + prediction data into drives for milestone detection
+            ds_enriched = {**ds,
+                           "circadian_pressure": sleep_sum.get("circadian_pressure", 0),
+                           "caretaker_absent":   pred_sum.get("caretaker_absent", 0)}
+            check_milestones(ds_enriched, ns_full, emo_sum, soc_sum,
+                             {}, gaba_sum, ven_sum,
+                             drives.state["cognition"]["total_interactions"],
+                             prediction=pred_sum)
 
             # REM dreams
             if sleep_result == "rem":
@@ -449,21 +464,25 @@ def main():
 
                     response = think(ds, ns_full, emotions, ven, gaba, social, pred,
                                      dna, memory, incoming_message=human_text,
-                                     current_sig=current_sig, workspace=workspace)
+                                     current_sig=current_sig, workspace=workspace,
+                                     sleep_summary=sleep.summary())
 
-                    # GABA anger suppression
+                    # GABA anger suppression (consequence learning feeds in via social)
                     gaba_attempted = response["is_anger"]
                     gaba_succeeded = False
                     if response["is_anger"]:
                         suppressed, reason = gaba.can_suppress(
-                            "anger_expression", 0.7, reason="social_cost"
+                            "anger_expression", 0.7,
+                            reason="social_cost", social=social
                         )
                         if suppressed:
                             gaba_succeeded = True
                             response["text"] = "[feels something strong but holds it]"
                             log(f"[GABA] Anger suppressed: {reason}")
 
-                    speak(response["text"], prefix="🤖")
+                    speak(response["text"], prefix="🤖",
+                          dominant=ds["dominant"], cog_state=ds["cog_state"],
+                          aging_phase=ds.get("aging_phase", "healthy"))
                     log_speech(response["text"], "response", ds, ns_full)
                     log_decision(
                         trigger=human_text[:40],
@@ -476,10 +495,11 @@ def main():
                         drives=ds, neuro=ns_full,
                         consequence_pain=social.get_pain_for_urge("anger_expression")
                     )
-                    check_milestones(ds, ns_full, emotions.summary(), social.summary(),
-                                     {}, {}, ven.summary(),
+                    check_milestones(ds_enriched, ns_full, emo_sum, soc_sum,
+                                     {}, gaba_sum, ven_sum,
                                      drives.state["cognition"]["total_interactions"],
-                                     speech_text=response["text"])
+                                     speech_text=response["text"],
+                                     prediction=pred_sum)
 
                     memory.add("ai", response["text"], ds, response["intensity"])
                     drives.set_spoke()
@@ -497,8 +517,10 @@ def main():
                 # ---- FREE TIME ----
                 pred.tick_caretaker_absence()
 
-                if should_attempt_behavior(ds, ns_full, ticks_since_spoke, dna["traits"]):
-                    behavior = choose_behavior(ds, ns_full, sleep.summary(), dna["traits"])
+                # Inject caretaker absence ticks so free_time can detect loneliness
+                ds_with_absence = {**ds, "caretaker_absent_ticks": pred.summary().get("caretaker_absent", 0)}
+                if should_attempt_behavior(ds_with_absence, ns_full, ticks_since_spoke, dna["traits"]):
+                    behavior = choose_behavior(ds_with_absence, ns_full, sleep.summary(), dna["traits"])
 
                     if behavior == "sound":
                         sounds = {
@@ -522,7 +544,7 @@ def main():
                             response = think(
                                 ds, ns_full, emotions, ven, gaba, social, pred,
                                 dna, memory, override_trigger=prompt,
-                                workspace=workspace
+                                workspace=workspace, sleep_summary=sleep.summary()
                             )
 
                             if response["is_anger"]:
@@ -538,13 +560,18 @@ def main():
                                     "worry":      "😟",
                                     "wonder":     "🌀",
                                     "rest_thought":"😴",
+                                    "loneliness": "🌑",
                                 }.get(behavior, "💭")
-                                speak(response["text"], prefix=pfx)
+                                speak(response["text"], prefix=pfx,
+                                      dominant=ds["dominant"],
+                                      cog_state=ds["cog_state"],
+                                      aging_phase=ds.get("aging_phase", "healthy"))
                                 log_speech(response["text"], "spontaneous", ds, ns_full, behavior)
-                                check_milestones(ds, ns_full, emotions.summary(), social.summary(),
-                                                 {}, {}, ven.summary(),
+                                check_milestones(ds_enriched, ns_full, emo_sum, soc_sum,
+                                                 {}, gaba_sum, ven_sum,
                                                  drives.state["cognition"]["total_interactions"],
-                                                 speech_text=response["text"])
+                                                 speech_text=response["text"],
+                                                 prediction=pred_sum)
                                 memory.add("ai", response["text"], ds, response["intensity"])
                                 drives.set_spoke()
                                 ticks_since_spoke = 0

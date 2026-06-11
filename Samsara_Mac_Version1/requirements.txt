@@ -10,6 +10,9 @@ python-telegram-bot>=21.0
 # No credit card needed. 14,400 free calls per day.
 groq
 
+# Environment variable loader — reads keys from .env file
+python-dotenv
+
 # Voice input — speak to Kora instead of typing (optional)
 # If this fails, Kora still works fine via Telegram only
 openai-whisper

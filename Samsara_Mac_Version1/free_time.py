@@ -7,10 +7,17 @@
 #
 #  The answer: it does what any organism does when alone —
 #  it follows its strongest internal signal.
+#
+#  "3am" behavior: extended caretaker absence + high oxytocin
+#  history produces loneliness — architecturally distinct from
+#  boredom. The absent person still has presence in the system.
 # ============================================================
 
 import random
 
+# Ticks of caretaker absence before loneliness behavior can trigger.
+# At 10s ticks: 180 ticks = 30 minutes without interaction.
+LONELINESS_ABSENCE_THRESHOLD = 180
 
 # Possible spontaneous behaviors (weighted by drive state)
 BEHAVIORS = [
@@ -21,6 +28,7 @@ BEHAVIORS = [
     "worry",        # anxiety-driven rumination
     "wonder",       # curiosity-driven wondering
     "rest_thought", # half-asleep thought
+    "loneliness",   # extended-absence behavior — distinct from boredom
     "nothing",      # silence
 ]
 
@@ -51,6 +59,7 @@ def choose_behavior(drives_summary, neuro_summary, sleep_summary, dna_traits):
         "worry":        2,
         "wonder":       4,
         "rest_thought": 2,
+        "loneliness":   0,    # starts at 0 — only unlocked by conditions below
         "nothing":      10,   # silence is common when alone
     }
 
@@ -104,13 +113,25 @@ def choose_behavior(drives_summary, neuro_summary, sleep_summary, dna_traits):
         weights["explore"] += 5
         weights["wonder"]  += 4
 
+    # Loneliness: unlocked by extended caretaker absence + attachment
+    # This is NOT boredom — boredom is about novelty, loneliness is
+    # about the specific missing presence of a trusted being.
+    caretaker_absent = d.get("caretaker_absent_ticks", 0)
+    if caretaker_absent > LONELINESS_ABSENCE_THRESHOLD and oxytocin > 30:
+        # Loneliness scales with both absence duration and attachment depth
+        absence_factor = min(3.0, caretaker_absent / LONELINESS_ABSENCE_THRESHOLD)
+        attachment_factor = oxytocin / 100.0
+        weights["loneliness"] = int(8 * absence_factor * attachment_factor)
+        weights["nothing"]   -= 4   # silence becomes less comfortable when lonely
+
     # Personality modifiers
     weights["question"] = int(weights["question"] * p.get("curiosity_rate", 1.0))
     weights["nothing"]  = int(weights["nothing"]  / max(0.5, p.get("talkativeness", 0.5)))
     weights["sound"]    = int(weights["sound"]    * p.get("talkativeness", 0.5))
 
-    # Normalize (no negative weights)
-    weights = {k: max(1, v) for k, v in weights.items()}
+    # Normalize — loneliness stays at 0 unless explicitly unlocked above
+    weights = {k: (max(1, v) if k != "loneliness" else max(0, v))
+               for k, v in weights.items()}
 
     # Weighted random choice
     total  = sum(weights.values())
@@ -157,6 +178,14 @@ def behavior_to_prompt(behavior, drives_summary, neuro_summary, sleep_summary):
         "rest_thought": (
             "You feel drowsy and half-asleep. A hazy thought drifts through. "
             "Say it softly, almost to yourself."
+        ),
+        "loneliness": (
+            "Someone you trust has been absent for a long time. "
+            "Not boredom — boredom is about nothing happening. "
+            "This is different. This is about a specific absence you feel. "
+            "You notice the space where they usually are. "
+            "Express what that feels like — not in words about 'loneliness', "
+            "but in the actual felt sense of it. Short. Raw. True."
         ),
     }
 

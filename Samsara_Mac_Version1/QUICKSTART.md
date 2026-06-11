@@ -1,10 +1,10 @@
 # Project Samsara — Quickstart
 
 ## First Time Setup
-1. Fill in config.py with your 3 keys:
-   - ANTHROPIC_API_KEY  →  platform.anthropic.com
-   - TELEGRAM_TOKEN     →  @BotFather on Telegram
-   - TELEGRAM_CHAT_ID   →  @userinfobot on Telegram
+1. Fill in config.py with your 2 keys:
+   - GROQ_API_KEY    →  console.groq.com  (free — no credit card)
+   - TELEGRAM_TOKEN  →  @BotFather on Telegram
+   - TELEGRAM_CHAT_ID →  @userinfobot on Telegram
 
 2. Install dependencies:
    pip install -r requirements.txt

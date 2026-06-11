@@ -24,7 +24,7 @@ try:
     AUDIO_AVAILABLE = True
 except ImportError:
     AUDIO_AVAILABLE = False
-    print("[BABBLE] pyaudio/numpy not available — using simple babble sounds")
+    print("[BABBLE] pyaudio/numpy not available -- using simple babble sounds")
 
 
 # Babble fades as the AI has more interactions

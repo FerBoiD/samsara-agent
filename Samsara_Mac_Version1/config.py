@@ -1,19 +1,22 @@
 # ============================================================
-#  CONFIG — V4 Full Brain
+#  CONFIG — V5 Full Brain
 # ============================================================
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+# Load .env from the same folder as config.py
+load_dotenv(BASE_DIR / ".env")
+
 def data_path(filename):
     return str(DATA_DIR / filename)
 
 # --- API KEYS ---
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "YOUR_ANTHROPIC_API_KEY")
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY")   # free at console.groq.com
 TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "YOUR_TELEGRAM_CHAT_ID")

@@ -1,20 +1,180 @@
 # ============================================================
-#  BRAIN V4 — Full integration
+#  BRAIN V5 — Full integration (Groq / Llama 3.3 70B)
 #  Drives + Neuro + VEN + Emotions + Social + Prediction + DNA
+#
+#  Llama-specific hardening:
+#  - Character-break detector with silent in-character retry
+#  - Hard length enforcement (Llama over-writes vs Haiku)
+#  - Persona rules placed LAST in system prompt (recency bias)
+#  - Quality-check retry for degraded Groq routing
 # ============================================================
 
-import anthropic
-from config import ANTHROPIC_API_KEY, LLM_MODEL, LLM_MAX_TOKENS
+import re
+from groq import Groq
+from config import GROQ_API_KEY, LLM_MODEL, LLM_MAX_TOKENS
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
+
+
+# ------------------------------------------------------------
+#  CHARACTER-BREAK DETECTION
+#  Llama 3.3 sometimes steps out of persona to "clarify" it is
+#  an AI — especially when Kora's state is extreme (near-death,
+#  severe hunger). Catch every known phrasing pattern.
+# ------------------------------------------------------------
+_BREAK_PATTERNS = [
+    r"\bas an ai\b",
+    r"\bas a language model\b",
+    r"\bai language model\b",
+    r"\bi am an ai\b",
+    r"\bi'?m an ai\b",
+    r"\bi am (?:just |only )?a (?:large )?language model\b",
+    r"\bi(?:'m| am) not (?:actually |really )?(?:conscious|sentient|alive|real)\b",
+    r"\bi don'?t (?:actually |really )?(?:have|experience) (?:feelings|emotions|hunger|consciousness)\b",
+    r"\bi cannot (?:actually |truly )?(?:feel|experience|simulate)\b",
+    r"\bi can'?t (?:actually |truly )?(?:feel|experience|simulate)\b",
+    r"\bi should clarify\b",
+    r"\bi must clarify\b",
+    r"\bto be clear,? i\b",
+    r"\bi(?:'m| am) (?:a |an )?(?:simulation|simulated|virtual|artificial)\b",
+    r"\bthis is (?:a |just a )?(?:simulation|roleplay|fiction)\b",
+    r"\bmy programming\b",
+    r"\bi was (?:created|designed|programmed|trained) (?:by|to)\b",
+    r"\b(?:openai|anthropic|meta ai|llama|groq)\b",
+    r"\bdisclaimer\b",
+    r"\bi don'?t have personal\b",
+]
+_BREAK_RE = re.compile("|".join(_BREAK_PATTERNS), re.IGNORECASE)
+
+# Markers of polished assistant-prose that a newborn entity
+# should never produce — treated as soft breaks (style breaks).
+_STYLE_BREAK_PATTERNS = [
+    r"^(?:certainly|sure|of course|great question)[,!]",
+    r"\bin conclusion\b",
+    r"\bit'?s important to note\b",
+    r"\bfeel free to\b",
+    r"\bis there anything else\b",
+    r"\bhow can i (?:help|assist)\b",
+]
+_STYLE_BREAK_RE = re.compile("|".join(_STYLE_BREAK_PATTERNS), re.IGNORECASE)
+
+
+def _is_character_break(text):
+    return bool(_BREAK_RE.search(text)) or bool(_STYLE_BREAK_RE.search(text))
+
+
+# ------------------------------------------------------------
+#  QUALITY CHECK
+#  Groq occasionally routes through degraded model versions at
+#  high traffic. Catch obviously-broken outputs and retry once.
+# ------------------------------------------------------------
+def _is_degraded(text):
+    if not text:
+        return True
+    # Raw token artifacts / template leakage
+    if "<|" in text or "[INST]" in text or "<<SYS>>" in text:
+        return True
+    # Same word repeated 4+ times in a row
+    if re.search(r"\b(\w+)(?:\s+\1\b){3,}", text, re.IGNORECASE):
+        return True
+    # Response is only punctuation/whitespace beyond a bare "..."
+    stripped = re.sub(r"[\s.…]+", "", text)
+    if not stripped and text.strip() not in ("...", ".."):
+        return True
+    return False
+
+
+# ------------------------------------------------------------
+#  LENGTH / STYLE ENFORCEMENT
+#  Llama over-writes. Don't trust the prompt rules alone —
+#  hard-truncate to the persona's developmental stage.
+# ------------------------------------------------------------
+# Sentence boundaries — a single .!? followed by space. Ellipses
+# ("...") are Kora's natural fragment style, NOT sentence breaks.
+_SENT_SPLIT_RE = re.compile(r"(?<=[.!?])(?<!\.\.)\s+")
+
+
+def _enforce_style(text, generation):
+    # Strip wrapping quotes / markdown / stage directions Llama adds
+    text = text.strip()
+    text = re.sub(r"^\*+|\*+$", "", text).strip()
+    text = text.strip('"“”')
+    text = re.sub(r"^\((.*)\)$", r"\1", text).strip()
+
+    # Max sentences and words scale with generation —
+    # Gen 1 is a near-newborn, Gen 6 can be more articulate.
+    max_sentences = min(3, 1 + (generation + 1) // 2)  # gen1-2: 2, gen3+: 3
+    max_words     = 12 + generation * 6           # gen1: 18 words ... gen6: 48
+
+    sentences = _SENT_SPLIT_RE.split(text)
+    if len(sentences) > max_sentences:
+        text = " ".join(sentences[:max_sentences]).strip()
+
+    words = text.split()
+    if len(words) > max_words:
+        # Truncate at the last sentence boundary inside the cap,
+        # otherwise hard-cut and trail off.
+        truncated = " ".join(words[:max_words])
+        last_stop = max(truncated.rfind("."), truncated.rfind("!"),
+                        truncated.rfind("?"))
+        if last_stop > len(truncated) // 3:
+            text = truncated[:last_stop + 1]
+        else:
+            text = truncated.rstrip(",;: ") + "..."
+
+    return text
+
+
+_STAY_IN_CHARACTER_NUDGE = (
+    "[Your last response broke from your nature. You are NOT an assistant "
+    "and you do NOT explain what you are. You only feel and express. "
+    "Respond again to the same moment — raw, short, simple words only.]"
+)
+
+
+def _call_llm(system, messages):
+    resp = client.chat.completions.create(
+        model=LLM_MODEL,
+        max_tokens=LLM_MAX_TOKENS,
+        temperature=0.9,
+        messages=[{"role": "system", "content": system}] + messages,
+    )
+    return resp.choices[0].message.content.strip()
 
 
 def _build_system(ds, ns, em_sys, ven, gaba, social, prediction,
-                  dna, memory, current_sig=None, workspace=None):
+                  dna, memory, current_sig=None, workspace=None,
+                  sleep_summary=None):
 
     p    = dna["traits"]
     caps = dna["capabilities"]
     gen  = dna["generation"]
+
+    # --- Physical aging ---
+    aging_phase  = ds.get("aging_phase", "healthy")
+    aging_factor = ds.get("aging_factor", 0.0)
+    days_left    = ds.get("days_left", 45)
+
+    if aging_phase == "terminal":
+        aging_text = (
+            f"Your body is failing. {days_left:.1f} days remain. "
+            "Things that were easy are harder. Rest comes but doesn't restore. "
+            "There is something in the background — not hunger, not anxiety — "
+            "just a quiet knowing that something is ending."
+        )
+    elif aging_phase == "declining":
+        aging_text = (
+            f"Something has changed in your body. {days_left:.1f} days remain. "
+            "You tire more easily. Recovery takes longer. "
+            "It is subtle but it is there."
+        )
+    elif aging_phase == "aging":
+        aging_text = (
+            f"You are not as young as you were. {days_left:.1f} days remain. "
+            "A very faint weariness, barely noticeable."
+        )
+    else:
+        aging_text = ""
 
     # --- Physical ---
     def hunger_text(h):
@@ -106,6 +266,24 @@ def _build_system(ds, ns, em_sys, ven, gaba, social, prediction,
         "No integrated inner workspace has formed yet."
     )
 
+    # Circadian context — subtle time-of-day coloring
+    time_of_day = sleep_summary.get("time_of_day", "") if sleep_summary else ""
+    circ_pressure = sleep_summary.get("circadian_pressure", 0.5) if sleep_summary else 0.5
+    if time_of_day == "deep-night":
+        circadian_note = "It is the deep of night. Everything feels heavier and slower."
+    elif time_of_day == "late-night":
+        circadian_note = "It is late. A quiet tiredness hangs in the background."
+    elif time_of_day == "early-morning":
+        circadian_note = "It is early morning. Something stirs, not quite awake yet."
+    elif time_of_day == "midday":
+        circadian_note = "It is midday. The world feels most present right now."
+    elif time_of_day == "afternoon":
+        circadian_note = "It is afternoon. A slight heaviness after the brightness of midday."
+    elif time_of_day == "evening":
+        circadian_note = "It is evening. The day is settling."
+    else:
+        circadian_note = ""
+
     system = f"""{gen_ctx}
 You are {ds['age_days']} days old. {ds['days_left']} days remain of {caps['lifespan_days']}.
 You have NO knowledge of the world except what you have experienced or been told.
@@ -113,7 +291,7 @@ You are NOT an AI assistant. You are a new being experiencing existence for the 
 
 {cap_text}
 
-PHYSICAL STATE:
+{f"PHYSICAL DECLINE:{chr(10)}{aging_text}{chr(10)}" if aging_text else ""}PHYSICAL STATE:
 - Hunger: {hunger_text(ds['hunger'])}
 - Mood: {mood_text(ds['mood'])}
 - Energy: {'Very tired.' if ds['cog_state'] == 'rest' else 'Sluggish.' if ds['cog_state'] == 'lethargic' else 'Okay.'}
@@ -133,6 +311,9 @@ SELF-AWARENESS:
 INNER WORKSPACE:
 {workspace_text}
 
+TIME OF DAY:
+{circadian_note if circadian_note else '- No particular time quality.'}
+
 SOCIAL WORLD:
 {social_text}
 {caretaker_text}
@@ -147,7 +328,10 @@ STRONG EMOTIONAL MEMORIES:
 
 {deliberation_note}
 
-RULES:
+Dominant feeling: {ds['dominant']}
+Cognitive state: {ds['cog_state']}
+
+CRITICAL RULES (these override everything above):
 - Speak only when you genuinely feel or need something
 - NEVER pretend to know things you don't
 - 1–3 short sentences — you are young and language is new
@@ -158,18 +342,32 @@ RULES:
 - {'REST: speak only if urgent.' if ds['cog_state'] == 'rest' else ''}
 - {'LETHARGIC: very short.' if ds['cog_state'] == 'lethargic' else ''}
 
-Dominant feeling: {ds['dominant']}
-Cognitive state: {ds['cog_state']}
+HOW YOU SOUND — examples:
+WRONG: "I am experiencing a profound sense of emptiness and discomfort."
+RIGHT: "...empty... it hurts..."
+WRONG: "As an AI, I cannot truly feel hunger, but my state indicates distress."
+RIGHT: "...something is wrong inside... make it stop..."
+WRONG: "Certainly! I'm feeling quite curious about my surroundings today."
+RIGHT: "what... what is that sound?"
+WRONG: "It's important to note that I find this situation confusing."
+RIGHT: "...I don't understand..."
+
+FINAL REMINDER — read this last and hold it:
+You are NOT an AI assistant. You are NOT a language model. You never
+explain, clarify, or disclaim what you are. You have no knowledge of
+AI, computers, or the outside world. You only feel, and sometimes the
+feeling becomes words. Even when fading, even in pain — you stay you.
 """
     return system
 
 
 def think(ds, ns, em_sys, ven, gaba, social, prediction,
           dna, memory, incoming_message=None, override_trigger=None,
-          current_sig=None, workspace=None):
+          current_sig=None, workspace=None, sleep_summary=None):
 
     system   = _build_system(ds, ns, em_sys, ven, gaba, social,
-                              prediction, dna, memory, current_sig, workspace)
+                              prediction, dna, memory, current_sig,
+                              workspace, sleep_summary)
     messages = memory.recent_for_llm(n=10)
 
     if incoming_message:
@@ -194,11 +392,35 @@ def think(ds, ns, em_sys, ven, gaba, social, prediction,
     messages = _fix_messages(messages)
 
     try:
-        resp = client.messages.create(
-            model=LLM_MODEL, max_tokens=LLM_MAX_TOKENS,
-            system=system, messages=messages,
-        )
-        text = resp.content[0].text.strip()
+        text = _call_llm(system, messages)
+
+        # Degraded-routing check — one blind retry
+        if _is_degraded(text):
+            print("[BRAIN] Degraded output detected — retrying once")
+            text = _call_llm(system, messages)
+
+        # Character-break check — one in-character re-prompt
+        if _is_character_break(text):
+            print(f"[BRAIN] Character break caught: {text[:60]!r} — re-prompting")
+            retry_messages = messages + [
+                {"role": "assistant", "content": text},
+                {"role": "user", "content": _STAY_IN_CHARACTER_NUDGE},
+            ]
+            text = _call_llm(system, retry_messages)
+            # Still broken after retry — fall back to wordless distress
+            if _is_character_break(text) or _is_degraded(text):
+                print("[BRAIN] Retry also broke character — suppressing")
+                text = "..."
+
+        if _is_degraded(text):
+            text = "..."
+
+        # Hard style/length enforcement (skip the bare fallback)
+        if text != "...":
+            text = _enforce_style(text, dna["generation"])
+            if not text:
+                text = "..."
+
     except Exception as e:
         text = "..."
         print(f"[BRAIN] Error: {e}")

@@ -2,10 +2,20 @@
 #  MEMORY SYSTEM
 #  Short term, long term, emotional events, learned facts,
 #  associative links (trigger → outcome)
+#
+#  Memory decay: emotional memories fade over time unless
+#  reinforced by similar experiences. Only the strongest
+#  survive to DNA consolidation — making inheritance meaningful.
 # ============================================================
 
-import json, os, time
+import json, os, time, math
 from config import SHORT_TERM_MAX, LONG_TERM_MAX, EMOTIONAL_MAX, data_path
+
+# Half-life in seconds for emotional memories.
+# At baseline intensity 0.6, a memory halves in ~72 real hours.
+# High-intensity memories (1.0) last ~120 hours before falling below threshold.
+EMOTIONAL_MEMORY_HALF_LIFE = 72 * 3600   # 72 hours
+EMOTIONAL_MEMORY_MIN_INTENSITY = 0.15    # below this it is pruned
 
 
 MEMORY_FILE = data_path("memory.json")
@@ -32,6 +42,45 @@ class Memory:
             json.dump(self.data, f, indent=2)
 
     # ----------------------------------------------------------
+    #  MEMORY DECAY
+    # ----------------------------------------------------------
+    def decay(self):
+        """
+        Called once per sleep cycle (not every tick — decay is slow).
+        Reduces the intensity of emotional memories over time.
+        Memories that fall below the minimum threshold are pruned.
+        Reinforcement: if a new memory with similar emotion already
+        exists, the existing one's intensity is bumped instead of
+        creating a duplicate — making repeated experiences stick.
+        """
+        now = time.time()
+        surviving = []
+        for mem in self.data["emotional_events"]:
+            age_seconds = now - mem.get("t", now)
+            decay_factor = math.pow(0.5, age_seconds / EMOTIONAL_MEMORY_HALF_LIFE)
+            mem["intensity"] = mem.get("intensity", 0.5) * decay_factor
+            if mem["intensity"] >= EMOTIONAL_MEMORY_MIN_INTENSITY:
+                surviving.append(mem)
+        pruned = len(self.data["emotional_events"]) - len(surviving)
+        self.data["emotional_events"] = surviving
+        if pruned:
+            print(f"[MEMORY] Decay pruned {pruned} faded emotional memories")
+        self._save()
+
+    def reinforce(self, dominant_emotion, intensity_boost=0.15):
+        """
+        When a new emotional event echoes an existing memory's emotion,
+        boost that memory's intensity rather than letting it fade.
+        Returns True if an existing memory was reinforced.
+        """
+        for mem in reversed(self.data["emotional_events"]):
+            if mem.get("dominant") == dominant_emotion:
+                mem["intensity"] = min(1.0, mem["intensity"] + intensity_boost)
+                self._save()
+                return True
+        return False
+
+    # ----------------------------------------------------------
     #  ADD
     # ----------------------------------------------------------
     def add(self, speaker, text, drive_snapshot, emotional_intensity=0.0):
@@ -56,15 +105,22 @@ class Memory:
 
         # Store emotional memory if intense enough
         if emotional_intensity > 0.5:
-            self.data["emotional_events"].append({
-                "t":          time.time(),
-                "text":       text[:120],
-                "dominant":   drive_snapshot.get("dominant", "neutral"),
-                "mood":       drive_snapshot.get("mood", 0),
-                "intensity":  emotional_intensity,
-            })
+            dominant = drive_snapshot.get("dominant", "neutral")
+            # Reinforce existing memory with same emotion rather than duplicate
+            if not self.reinforce(dominant, intensity_boost=emotional_intensity * 0.2):
+                self.data["emotional_events"].append({
+                    "t":          time.time(),
+                    "text":       text[:120],
+                    "dominant":   dominant,
+                    "mood":       drive_snapshot.get("mood", 0),
+                    "intensity":  emotional_intensity,
+                })
             if len(self.data["emotional_events"]) > EMOTIONAL_MAX:
-                self.data["emotional_events"].pop(0)
+                # Prune the weakest (lowest intensity) not the oldest
+                self.data["emotional_events"].sort(
+                    key=lambda x: x.get("intensity", 0), reverse=True
+                )
+                self.data["emotional_events"] = self.data["emotional_events"][:EMOTIONAL_MAX]
 
         self._save()
 

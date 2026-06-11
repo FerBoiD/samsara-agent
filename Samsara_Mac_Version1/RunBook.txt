@@ -12,7 +12,7 @@
 2. Internet connection (WiFi ON while running)
 3. Python 3.9 or newer installed
 4. A Telegram account on your phone
-5. An Anthropic account (free to sign up)
+5. A Groq account (free — no credit card needed)
 
 
 ----------------------------------------------------------------
@@ -91,7 +91,7 @@ You should see all the .py files listed.
 ----------------------------------------------------------------
 
 Type this and press Enter:
-  pip3 install anthropic python-telegram-bot
+  pip3 install groq python-telegram-bot
 
 Wait for it to finish. You will see a lot of text — that is normal.
 
@@ -111,21 +111,20 @@ Samsara will still work — you just talk via Telegram instead.
 
 
 ----------------------------------------------------------------
-  STEP 5 — GET YOUR ANTHROPIC API KEY
+  STEP 5 — GET YOUR GROQ API KEY (FREE)
 ----------------------------------------------------------------
 
-1. Go to: https://platform.anthropic.com
+1. Go to: https://console.groq.com
 2. Click Sign Up
 3. Enter your email and create a password
 4. Verify your email
-5. Verify your phone number (they require this)
-6. Once logged in, click "API Keys" in the left menu
-7. Click "Create Key"
-8. Copy the key — it looks like: sk-ant-api03-xxxxxx...
-9. SAVE IT SOMEWHERE — you only see it once
+5. Once logged in, click "API Keys" in the left menu
+6. Click "Create API Key"
+7. Copy the key — it looks like: gsk_xxxxxx...
+8. SAVE IT SOMEWHERE — you only see it once
 
-Free credits are given automatically when you sign up.
-No credit card needed to start.
+Completely free. No credit card required.
+14,400 free API calls per day — far more than Samsara needs.
 
 
 ----------------------------------------------------------------
@@ -160,15 +159,15 @@ Open config.py in a text editor.
 
 Find these 3 lines near the top:
 
-  ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "YOUR_ANTHROPIC_API_KEY")
-  TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN")
-  TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "YOUR_TELEGRAM_CHAT_ID")
+  GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY")
+  TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN")
+  TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "YOUR_TELEGRAM_CHAT_ID")
 
 Replace the placeholder text inside the second quotes:
 
-  ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "sk-ant-api03-your-real-key-here")
-  TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "123456789:your-real-token-here")
-  TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "987654321")
+  GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "gsk_your-real-key-here")
+  TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "123456789:your-real-token-here")
+  TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "987654321")
 
 Save the file.
 
@@ -339,7 +338,7 @@ Also in the main folder:
 
 Keep WiFi ON while running.
 Samsara needs internet for:
-  - Claude API (the brain)
+  - Groq API (the brain — Llama 3.3 70B)
   - Telegram (phone communication)
 
 The Observatory dashboard (localhost:5001) works offline
@@ -351,7 +350,7 @@ but everything else needs internet.
 ----------------------------------------------------------------
 
 "Module not found" error:
-  Run: pip3 install anthropic python-telegram-bot
+  Run: pip3 install groq python-telegram-bot
 
 Samsara starts but Telegram does not respond:
   Check your TELEGRAM_TOKEN and TELEGRAM_CHAT_ID in config.py

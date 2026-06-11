@@ -12,11 +12,11 @@
 # ============================================================
 
 import json, os, time, random
-import anthropic
-from config import ANTHROPIC_API_KEY, LLM_MODEL, data_path
+from groq import Groq
+from config import GROQ_API_KEY, LLM_MODEL, data_path
 
 DREAMS_FILE = data_path("dreams.json")
-client      = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+client      = Groq(api_key=GROQ_API_KEY)
 
 
 class DreamSystem:
@@ -76,12 +76,12 @@ class DreamSystem:
         )
 
         try:
-            response = client.messages.create(
+            response = client.chat.completions.create(
                 model=LLM_MODEL,
                 max_tokens=120,
                 messages=[{"role": "user", "content": prompt}]
             )
-            dream_text = response.content[0].text.strip()
+            dream_text = response.choices[0].message.content.strip()
         except Exception as e:
             dream_text = "...something dark and warm... a presence... then nothing..."
             print(f"[DREAM] LLM error: {e}")

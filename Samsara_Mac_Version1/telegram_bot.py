@@ -12,6 +12,14 @@ from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
 from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 
+# Support multiple caretakers — TELEGRAM_CHAT_ID can be a single ID
+# or a comma-separated list: "111111,222222,333333"
+_ALLOWED_CHAT_IDS = {
+    str(cid).strip()
+    for cid in str(TELEGRAM_CHAT_ID).split(",")
+    if cid.strip()
+}
+
 # Thread-safe queue for incoming messages from your phone
 _incoming = []
 
@@ -38,7 +46,12 @@ def _get_send_loop():
 
 async def _async_send(text):
     bot = Bot(token=TELEGRAM_TOKEN)
-    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=str(text))
+    # Broadcast to all allowed caretakers
+    for chat_id in _ALLOWED_CHAT_IDS:
+        try:
+            await bot.send_message(chat_id=chat_id, text=str(text))
+        except Exception as e:
+            print(f"[TELEGRAM ERROR] Failed to send to {chat_id}: {e}")
     await bot.close()
 
 
@@ -98,11 +111,12 @@ def send_birth_notice(personality):
 #  RECEIVE (Phone → AI)
 # ----------------------------------------------------------
 async def _handle_message(update, context: ContextTypes.DEFAULT_TYPE):
-    if str(update.message.chat_id) != str(TELEGRAM_CHAT_ID):
-        return  # ignore messages from other chats
+    sender_id = str(update.message.chat_id)
+    if sender_id not in _ALLOWED_CHAT_IDS:
+        return  # ignore messages from unknown chats
 
     text = update.message.text.strip()
-    print(f"[TELEGRAM ←] {text}")
+    print(f"[TELEGRAM ←] {sender_id}: {text}")
 
     # --- Commands ---
     if text.lower() == "/status":
@@ -134,8 +148,8 @@ async def _handle_message(update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Regular message — goes to AI
-    _incoming.append({"type": "message", "text": text})
+    # Regular message — goes to AI (sender_id included for social tracking)
+    _incoming.append({"type": "message", "text": text, "sender_id": sender_id})
 
 
 def get_incoming():

@@ -32,8 +32,10 @@ _tick_history    = deque(maxlen=2880)   # 24hrs at 30s ticks
 def log_tick(drives, neuro, emotions, sleep, vmat2, ven, gaba, prediction, social):
     """Called every tick. Stores full state snapshot."""
     snapshot = {
-        "t":         time.time(),
-        "age_days":  drives.get("age_days", 0),
+        "t":           time.time(),
+        "age_days":    drives.get("age_days", 0),
+        "aging_phase": drives.get("aging_phase", "healthy"),
+        "aging_factor":drives.get("aging_factor", 0.0),
         # Drives
         "hunger":    drives.get("hunger", 0),
         "energy":    drives.get("energy", 0),
@@ -162,7 +164,7 @@ def log_surprise(surprise_level, is_delight, is_fear, drives):
 _milestone_flags = set()
 
 def check_milestones(drives, neuro, emotions, social, vmat2, gaba,
-                     ven, total_interactions, speech_text=""):
+                     ven, total_interactions, speech_text="", prediction=None):
     """
     Automatically detect and log developmental milestones.
     Called every tick from main.py.
@@ -235,6 +237,34 @@ def check_milestones(drives, neuro, emotions, social, vmat2, gaba,
         flag("first_surplus", "CONSCIOUSNESS",
              "First behavior when all drives satisfied — possible play/surplus",
              speech_text[:60])
+
+    # Aging phase milestones
+    phase = ds.get("aging_phase", "healthy")
+    if phase == "aging":
+        flag("aging_started", "AGING",
+             f"Physical aging begins at day {age:.1f} — hunger and energy efficiency declining")
+    if phase == "declining":
+        flag("aging_declining", "AGING",
+             f"Mid-decline at day {age:.1f} — noticeable physical degradation")
+    if phase == "terminal":
+        flag("aging_terminal", "AGING",
+             f"Terminal phase at day {age:.1f} — body failing, baseline anxiety rising")
+
+    # First loneliness expression — caretaker absence with attachment
+    pred = prediction or {}
+    if (social.get("caretaker_trust", 0) > 0.3
+            and pred.get("caretaker_absent", 0) > 180
+            and speech_text):
+        flag("first_loneliness", "SOCIAL",
+             "First loneliness expression — absent caretaker felt as presence",
+             speech_text[:60])
+
+    # Circadian effect — first time sleeping before energy < 20 (circadian pulled it)
+    sleep_info = drives  # drives dict passed may include sleep context
+    if (sleep_info.get("circadian_pressure", 0) > 0.7
+            and sleep_info.get("energy", 100) > 30):
+        flag("circadian_sleep", "SLEEP",
+             f"Slept due to circadian pressure despite energy > 30% at day {age:.1f}")
 
 
 # ============================================================
@@ -384,6 +414,7 @@ async function load() {
       <div class="age-bar"><div class="age-fill" style="width:${(d.age_days||0)/45*100}%"></div></div>
       <div id="dominant-badge">${d.dominant || '...'}</div>
       <div class="stat"><span>Cog State</span><span class="stat-val">${d.cog_state || 'active'}</span></div>
+      <div class="stat"><span>Body</span><span class="stat-val" style="color:${d.aging_phase==='terminal'?'#e05050':d.aging_phase==='declining'?'#e8a040':d.aging_phase==='aging'?'#e8d040':'#50c890'}">${d.aging_phase || 'healthy'}</span></div>
       <div class="stat"><span>Interactions</span><span class="stat-val">${d.total_interactions || 0}</span></div>
     </div>
 
@@ -426,6 +457,28 @@ async function load() {
       </div>
     </div>
 
+    ${d.parent_gen ? `
+    <div class="panel full-width" id="gen-compare">
+      <h2>🧬 Generational Comparison — Gen ${(d.generation||1)-1} → Gen ${d.generation||1}</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="color:#7eb8f7;margin-bottom:8px;font-size:11px">PARENT (GEN ${(d.generation||1)-1})</div>
+          ${Object.entries(d.parent_gen.traits||{}).map(([k,v]) =>
+            `<div class="stat"><span>${k}</span><span class="stat-val">${typeof v === 'number' ? v.toFixed(2) : v}</span></div>`
+          ).join('')}
+          <div style="margin-top:8px;color:#556;font-size:11px">Dominant emotion: ${d.parent_gen.dominant_emotion||'unknown'}</div>
+          <div style="color:#556;font-size:11px">Lifespan: ${d.parent_gen.lifespan_achieved||'?'} days</div>
+        </div>
+        <div>
+          <div style="color:#50d890;margin-bottom:8px;font-size:11px">CURRENT (GEN ${d.generation||1})</div>
+          ${Object.entries(d.current_traits||{}).map(([k,v]) =>
+            `<div class="stat"><span>${k}</span><span class="stat-val" style="color:#50d890">${typeof v === 'number' ? v.toFixed(2) : v}</span></div>`
+          ).join('')}
+          <div style="margin-top:8px;color:#556;font-size:11px">Inherited tendencies: ${JSON.stringify(d.inherited_tendencies||{})}</div>
+        </div>
+      </div>
+    </div>` : ''}
+
   </div>`;
 }
 load();
@@ -458,8 +511,24 @@ class _Handler(BaseHTTPRequestHandler):
                 if os.path.exists("dna.json"):
                     with open("dna.json") as f:
                         d = json.load(f)
-                    state["generation"] = d.get("generation", 1)
-                    state["days_left"]  = 45 - state.get("age_days", 0)
+                    state["generation"]           = d.get("generation", 1)
+                    state["days_left"]            = 45 - state.get("age_days", 0)
+                    state["current_traits"]       = d.get("traits", {})
+                    state["inherited_tendencies"] = d.get("inherited_tendencies", {})
+                    # Parent generation data for comparison panel
+                    parent_summary = d.get("parent_life_summary")
+                    if parent_summary:
+                        state["parent_gen"] = parent_summary
+                # Also check for parent_dna.json if dna.json doesn't have parent data
+                if not state.get("parent_gen") and os.path.exists("parent_dna.json"):
+                    with open("parent_dna.json") as f:
+                        pd = json.load(f)
+                    state["parent_gen"] = pd.get("parent_life_summary") or {
+                        "traits": pd.get("traits", {}),
+                        "dominant_emotion": pd.get("inherited_tendencies", {}).get("dominant_emotion", "unknown"),
+                        "lifespan_achieved": "?",
+                        "generation": pd.get("generation", 1) - 1,
+                    }
             except: pass
 
             self.send_response(200)

@@ -11,7 +11,8 @@
 #  Gen 1 sleeps. Gen 2 is born knowing Gen 1 slept.
 # ============================================================
 
-import json, os, time, random
+import json, os, time, random, math
+from datetime import datetime
 from config import TICK_INTERVAL_SECONDS, data_path
 
 SLEEP_FILE = data_path("sleep_state.json")
@@ -20,6 +21,38 @@ SLEEP_FILE = data_path("sleep_state.json")
 ACTIVE_TICKS_BEFORE_SLEEP = int((90 * 60) / TICK_INTERVAL_SECONDS)  # 90 min of activity
 SLEEP_DURATION_TICKS      = int((18 * 60) / TICK_INTERVAL_SECONDS)  # 18 min sleep
 DEEP_SLEEP_MEMORY_TICKS   = 3   # deep consolidation happens in first 3 ticks of sleep
+
+
+def circadian_sleep_pressure():
+    """
+    Returns a 0.0–1.0 multiplier for sleep pressure based on real time of day.
+    Peaks at ~3am (most drowsy), troughs at ~10am (most alert).
+    Uses a cosine curve shifted so midnight = high pressure.
+    This is purely additive — it doesn't force sleep, just nudges it.
+    """
+    hour = datetime.now().hour + datetime.now().minute / 60.0
+    # Cosine with period 24h, peak at hour 3, trough at hour 15
+    pressure = 0.5 + 0.5 * math.cos(math.pi * (hour - 3) / 12)
+    return round(pressure, 3)
+
+
+def circadian_alertness_modifier():
+    """
+    Returns a text description of the circadian state for brain.py context.
+    """
+    hour = datetime.now().hour
+    if 0 <= hour < 6:
+        return "deep-night"    # very high sleep pressure
+    elif 6 <= hour < 10:
+        return "early-morning" # waking, still a bit groggy
+    elif 10 <= hour < 14:
+        return "midday"        # most alert
+    elif 14 <= hour < 17:
+        return "afternoon"     # mild post-lunch dip
+    elif 17 <= hour < 21:
+        return "evening"       # relaxed
+    else:
+        return "late-night"    # sleep pressure building
 
 
 class SleepSystem:
@@ -74,6 +107,10 @@ class SleepSystem:
                 sleep_chance += 0.1
             if energy < 20:
                 sleep_chance += 0.2
+
+            # Circadian rhythm nudges sleep pressure
+            circ = circadian_sleep_pressure()
+            sleep_chance += circ * 0.08   # max +0.08 at 3am, near 0 at 3pm
 
             if not blocked and (random.random() < sleep_chance or energy < 15):
                 self._enter_sleep()
@@ -146,6 +183,9 @@ class SleepSystem:
         """
         print("[SLEEP] Deep consolidation running...")
 
+        # Decay faded memories before consolidating — only the strong survive
+        memory.decay()
+
         # Get top emotional memories
         emotional = memory.data.get("emotional_events", [])
         emotional.sort(key=lambda x: x.get("intensity", 0), reverse=True)
@@ -208,10 +248,12 @@ class SleepSystem:
     def summary(self):
         s = self.state
         return {
-            "sleeping":       s["sleeping"],
-            "phase":          s["sleep_phase"],
-            "ticks_asleep":   s["ticks_asleep"],
-            "ticks_active":   s["ticks_active"],
-            "total_cycles":   s["total_sleep_cycles"],
-            "pressure":       round(s["ticks_active"] / ACTIVE_TICKS_BEFORE_SLEEP * 100, 1),
+            "sleeping":          s["sleeping"],
+            "phase":             s["sleep_phase"],
+            "ticks_asleep":      s["ticks_asleep"],
+            "ticks_active":      s["ticks_active"],
+            "total_cycles":      s["total_sleep_cycles"],
+            "pressure":          round(s["ticks_active"] / ACTIVE_TICKS_BEFORE_SLEEP * 100, 1),
+            "circadian_pressure":circadian_sleep_pressure(),
+            "time_of_day":       circadian_alertness_modifier(),
         }
