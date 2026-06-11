@@ -1,0 +1,26 @@
+# Project Samsara — Requirements
+# Run this to install everything:
+#   pip3 install -r requirements.txt
+
+# Telegram (required)
+python-telegram-bot>=21.0
+
+# Brain — Groq free API (required)
+# Get your free key at: https://console.groq.com
+# No credit card needed. 14,400 free calls per day.
+groq
+
+# Voice input — speak to Kora instead of typing (optional)
+# If this fails, Kora still works fine via Telegram only
+openai-whisper
+pyaudio
+numpy
+
+# If pyaudio fails on Mac, run these first:
+#   brew install portaudio
+#   pip3 install pyaudio
+
+# NOTE: anthropic package is no longer needed.
+# We switched from Claude Haiku (paid) to Groq Llama 3.3 70B (free).
+# Kora is still Kora — same personality, same drives, same DNA.
+# Only the voice model changed.

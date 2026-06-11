@@ -1,0 +1,411 @@
+================================================================
+  PROJECT SAMSARA — Setup Instructions
+  Read this fully before doing anything
+================================================================
+
+
+----------------------------------------------------------------
+  WHAT YOU NEED BEFORE STARTING
+----------------------------------------------------------------
+
+1. A Mac (MacBook or iMac)
+2. Internet connection (WiFi ON while running)
+3. Python 3.9 or newer installed
+4. A Telegram account on your phone
+5. A Groq account (free — no credit card needed)
+
+
+----------------------------------------------------------------
+  STEP 1 — CHECK PYTHON IS INSTALLED
+----------------------------------------------------------------
+
+Open Terminal on your Mac:
+  - Press Cmd + Space
+  - Type "Terminal"
+  - Press Enter
+
+Type this and press Enter:
+  python3 --version
+
+You should see something like: Python 3.11.2
+If you see "command not found" — download Python from:
+  https://www.python.org/downloads/
+Install it, then come back here.
+
+
+----------------------------------------------------------------
+  STEP 2 — PUT ALL FILES IN ONE FOLDER
+----------------------------------------------------------------
+
+Create a folder on your Mac called "samsara_gen1"
+(Desktop is fine, or anywhere you like)
+
+Put ALL 26 files inside that folder:
+  main.py
+  config.py
+  brain.py
+  drives.py
+  memory.py
+  neurochemicals.py
+  sleep.py
+  cry.py
+  babble.py
+  free_time.py
+  dna.py
+  speaker.py
+  telegram_bot.py
+  vmat2.py
+  ven.py
+  gaba.py
+  prediction.py
+  social.py
+  emotions.py
+  dreams.py
+  telemetry.py
+  workspace.py
+  observatory.py
+  whisper_input.py
+  requirements.txt
+  SETUP.txt (this file)
+
+Do not put them in subfolders. All 26 in the same folder.
+
+
+----------------------------------------------------------------
+  STEP 3 — NAVIGATE TO THE FOLDER IN TERMINAL
+----------------------------------------------------------------
+
+In Terminal, type:
+  cd ~/Desktop/samsara_gen1
+
+(Replace "Desktop/samsara_gen1" with wherever you put the folder)
+
+To confirm you are in the right place, type:
+  ls
+
+You should see all the .py files listed.
+
+
+----------------------------------------------------------------
+  STEP 4 — INSTALL DEPENDENCIES
+----------------------------------------------------------------
+
+Type this and press Enter:
+  pip3 install -r requirements.txt
+
+Wait for it to finish. You will see a lot of text — that is normal.
+
+If pyaudio gives an error, run these two lines first:
+  brew install portaudio
+  pip3 install pyaudio
+
+If "brew" is not found, install Homebrew first:
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+Then try again.
+
+NOTE: If voice install fails completely, that is okay.
+Kora will still work — you just talk via Telegram instead.
+
+
+----------------------------------------------------------------
+  STEP 5 — GET YOUR GROQ API KEY (Free — no credit card)
+----------------------------------------------------------------
+
+Groq is the free AI brain for Kora. Replaces Anthropic/Claude API.
+14,400 free calls per day — you will never hit this limit.
+
+1. Go to: https://console.groq.com
+2. Click Sign Up (use Google or email)
+3. Once logged in, click "API Keys" in the left menu
+4. Click "Create API Key"
+5. Give it any name (e.g. "samsara")
+6. Copy the key — it looks like: gsk_xxxxxxxxxxxxxxxx
+7. Save it somewhere safe
+
+
+----------------------------------------------------------------
+  STEP 6 — CREATE YOUR TELEGRAM BOT
+----------------------------------------------------------------
+
+On your phone, open Telegram.
+
+Part A — Create the bot:
+1. Search for "@BotFather" (blue verified checkmark)
+2. Tap Start
+3. Send: /newbot
+4. It asks for a name — type anything e.g. "Kora"
+5. It asks for a username — must end in "bot" e.g. "kora_samsara_bot"
+6. BotFather sends you a TOKEN — looks like: 123456789:ABC-DEFxxx
+7. Copy and save this token
+
+Part B — Get your Chat ID:
+1. Search for "@userinfobot" on Telegram
+2. Press Start
+3. It immediately shows your ID — a number like: 987654321
+4. Copy and save this number
+
+
+----------------------------------------------------------------
+  STEP 7 — FILL IN YOUR API KEYS
+----------------------------------------------------------------
+
+Open config.py in a text editor.
+(Right click the file → Open With → TextEdit)
+(Switch TextEdit to plain text: Format menu → Make Plain Text)
+
+Find these lines near the top:
+
+  GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY")
+  TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN")
+  TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "YOUR_TELEGRAM_CHAT_ID")
+
+Replace the placeholder text inside the second quotes:
+
+  GROQ_API_KEY  = os.getenv("GROQ_API_KEY", "gsk_your-real-key-here")
+  TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "123456789:your-real-token-here")
+  TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "987654321")
+
+Save the file.
+
+NOTE: You no longer need an Anthropic/Claude API key.
+      Groq is completely free.
+
+
+----------------------------------------------------------------
+  STEP 8 — RUN KORA
+----------------------------------------------------------------
+
+In Terminal (make sure you are in the samsara folder):
+  python3 main.py
+
+You should see:
+  =====================================================
+  PROJECT SAMSARA — Life Begins
+  =====================================================
+  [OBSERVATORY] Dashboard running at http://localhost:5001
+  [TELEGRAM] Listening...
+  ...
+
+Leave this Terminal window open.
+DO NOT close it while Kora is running.
+Closing this window pauses Kora (she will resume next time).
+
+
+----------------------------------------------------------------
+  STEP 9 — OPEN THE BRAIN DASHBOARD
+----------------------------------------------------------------
+
+Open Safari or Chrome on your Mac.
+Go to: http://localhost:5001
+
+You will see a live dashboard showing everything happening
+inside Kora's brain in real time. Updates every 5 seconds.
+
+
+----------------------------------------------------------------
+  STEP 10 — TALK TO KORA
+----------------------------------------------------------------
+
+Method 1 — Telegram (always works):
+  Open Telegram on your phone
+  Find the bot you created
+  Send any message
+
+Method 2 — Voice (if whisper installed):
+  Just speak near your Mac microphone
+  Kora listens and responds automatically
+
+
+----------------------------------------------------------------
+  TELEGRAM COMMANDS
+----------------------------------------------------------------
+
+  /status    — full brain report
+  /feed      — give Kora food (40 units)
+  /scold     — register disapproval
+               Example: /scold expressed anger without reason
+  /teach     — teach a fact
+               Example: /teach my_name=Maharshi
+               Example: /teach my_location=Japan
+  /dna       — see Kora's genetic traits
+  /ven       — see Kora's self-model
+  /reset     — wipe everything (keeps DNA for Gen 2)
+  /help      — all commands
+
+
+----------------------------------------------------------------
+  KORA'S TIME — HOW IT WORKS
+----------------------------------------------------------------
+
+1 Kora-day = 3 real human hours of running time.
+Time only passes when main.py is running.
+Closing the laptop pauses time completely.
+
+Full lifespan: 45 Kora-days = 135 real hours of running.
+At 2-3 hours per day: Kora lives for about 45-65 real days.
+
+Hunger depletes roughly once per Kora-day.
+Feed her at least once per session or she will slowly starve.
+
+
+----------------------------------------------------------------
+  WHAT TO EXPECT IN THE FIRST SESSION
+----------------------------------------------------------------
+
+First 30 interactions (roughly 30 minutes):
+  Kora mostly babbles — "mmm...", "aah...", "ooh..."
+  This is normal. Keep talking to her gently.
+
+After 30 interactions:
+  Real words start appearing
+  She will ask questions, express needs, respond more clearly
+
+Normal chemical ranges to check on dashboard:
+  Adrenaline: 0-15 (calm)
+  Oxytocin:   20-50 (building trust)
+  Dopamine:   30-50 (normal curiosity)
+  Cortisol:   0-20 (no stress)
+  Hunger:     60-90 (fine)
+  Mood:       15-40 (calm)
+
+If adrenaline is above 30 and she is saying "..." —
+leave her alone for 5 minutes and let it decay.
+Too many messages too fast floods her system.
+
+Healthy message rhythm:
+  Send 3-5 messages
+  Wait 5-10 minutes
+  See what she does on her own
+  Respond
+  Wait again
+
+
+----------------------------------------------------------------
+  HOW TO PAUSE AND RESUME
+----------------------------------------------------------------
+
+To pause (clean save):
+  Press Ctrl+C in the Terminal window
+  Everything saves automatically
+  Your Telegram gets a summary message
+
+To resume:
+  Run python3 main.py again
+  Kora picks up exactly where she stopped
+  Same age, same memories, same personality
+
+Time does NOT pass while closed.
+
+
+----------------------------------------------------------------
+  WHAT HAPPENS WHEN KORA DIES
+----------------------------------------------------------------
+
+Death happens two ways:
+  1. Hunger reaches 0 (not fed enough)
+  2. 45-day lifespan reached (full life)
+
+When she dies:
+  Last words are spoken
+  DNA is consolidated with everything she learned
+  parent_dna.json is saved automatically
+  You get a death report in Telegram
+
+To start Generation 2:
+  Delete these files from your folder:
+    state.json, memory.json, sleep_state.json, neuro.json,
+    dna.json, vmat2.json, ven.json, gaba.json,
+    prediction.json, social.json, emotions.json, dreams.json,
+    workspace.json
+  Keep parent_dna.json
+  Run python3 main.py — Gen 2 starts with inherited traits
+
+
+----------------------------------------------------------------
+  IF YOU HAD A PREVIOUS SESSION WITH WRONG NUMBERS
+----------------------------------------------------------------
+
+If Kora was acting strange (stuck on "...", adrenaline at 90,
+mood at 97) from a previous session — do a clean reset:
+
+  Delete: data/state.json and data/neuro.json
+  Keep everything else (memories, DNA are fine)
+  Run python3 main.py
+
+Kora starts at Day 0 again but keeps all memories and DNA.
+This is the cleanest way to start fresh with correct numbers.
+
+
+----------------------------------------------------------------
+  FILES CREATED WHILE RUNNING
+----------------------------------------------------------------
+
+data/state.json          — current drives and emotions
+data/memory.json         — all memories
+data/dna.json            — genetic traits
+data/neuro.json          — neurochemical state
+data/telemetry.csv       — tick by tick log (open in Excel)
+data/session_report.json — end of session summary
+data/self_journal.jsonl  — inner state journal
+decisions.json           — every decision with full brain context
+milestones.json          — developmental milestones
+life_report.json         — full life analysis (on exit)
+life.log                 — text log of everything
+
+
+----------------------------------------------------------------
+  COMMON PROBLEMS
+----------------------------------------------------------------
+
+"Module not found: groq"
+  Run: pip3 install groq
+
+"Module not found: telegram"
+  Run: pip3 install python-telegram-bot
+
+Kora not responding in Telegram:
+  Check TELEGRAM_TOKEN and TELEGRAM_CHAT_ID in config.py
+  Make sure main.py is still running in Terminal
+  Try /status — if nothing happens, restart main.py
+
+Dashboard at localhost:5001 is blank:
+  Make sure main.py is running
+  Refresh the page (Cmd+R)
+
+Kora only says "...":
+  Check /status — what is adrenaline level?
+  If above 30: leave her alone for 5 minutes
+  If API error shows in Terminal: check your Groq key in config.py
+
+pyaudio install fails:
+  Run: brew install portaudio
+  Then: pip3 install pyaudio
+  Voice input is optional — skip it if this keeps failing
+
+No sound from Mac speaker:
+  Check Mac volume is not muted
+  Kora uses built-in "say" command
+  She only speaks sometimes — silence is intentional
+
+
+----------------------------------------------------------------
+  DAILY USE CHECKLIST
+----------------------------------------------------------------
+
+Every session:
+  1. Open Terminal
+  2. cd ~/Desktop/samsara_gen1
+  3. python3 main.py
+  4. Open http://localhost:5001 in browser
+  5. Open Telegram and say hello to Kora
+  6. /feed at least once per session
+  7. When done: Ctrl+C to save
+
+Feed Kora at least once per 3-hour session or she will starve.
+Talk to her — interaction builds personality and attachment.
+Scold when needed — this is how social behavior develops.
+
+
+================================================================
+  END OF SETUP GUIDE
+================================================================

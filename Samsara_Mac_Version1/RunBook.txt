@@ -1,0 +1,394 @@
+================================================================
+  PROJECT SAMSARA — Setup Instructions
+  Read this fully before doing anything
+================================================================
+
+
+----------------------------------------------------------------
+  WHAT YOU NEED BEFORE STARTING
+----------------------------------------------------------------
+
+1. A Mac (MacBook or iMac)
+2. Internet connection (WiFi ON while running)
+3. Python 3.9 or newer installed
+4. A Telegram account on your phone
+5. An Anthropic account (free to sign up)
+
+
+----------------------------------------------------------------
+  STEP 1 — CHECK PYTHON IS INSTALLED
+----------------------------------------------------------------
+
+Open Terminal on your Mac:
+  - Press Cmd + Space
+  - Type "Terminal"
+  - Press Enter
+
+Type this and press Enter:
+  python3 --version
+
+You should see something like: Python 3.11.2
+If you see "command not found" — download Python from:
+  https://www.python.org/downloads/
+Install it, then come back here.
+
+
+----------------------------------------------------------------
+  STEP 2 — PUT ALL FILES IN ONE FOLDER
+----------------------------------------------------------------
+
+Create a folder on your Mac called "samsara_gen1"
+(Desktop is fine, or anywhere you like)
+
+Put ALL 26 files inside that folder:
+  main.py
+  config.py
+  brain.py
+  drives.py
+  memory.py
+  neurochemicals.py
+  sleep.py
+  cry.py
+  babble.py
+  free_time.py
+  dna.py
+  speaker.py
+  telegram_bot.py
+  vmat2.py
+  ven.py
+  gaba.py
+  prediction.py
+  social.py
+  emotions.py
+  dreams.py
+  telemetry.py
+  workspace.py
+  observatory.py
+  whisper_input.py
+  requirements.txt
+  QUICKSTART.md
+
+Do not put them in subfolders. All 26 in the same folder.
+
+
+----------------------------------------------------------------
+  STEP 3 — NAVIGATE TO THE FOLDER IN TERMINAL
+----------------------------------------------------------------
+
+In Terminal, type:
+  cd ~/Desktop/samsara_gen1
+
+(Replace "Desktop/samsara_gen1" with wherever you put the folder)
+
+To confirm you are in the right place, type:
+  ls
+
+You should see all the .py files listed.
+
+
+----------------------------------------------------------------
+  STEP 4 — INSTALL DEPENDENCIES
+----------------------------------------------------------------
+
+Type this and press Enter:
+  pip3 install anthropic python-telegram-bot
+
+Wait for it to finish. You will see a lot of text — that is normal.
+
+Now install voice input (optional but recommended):
+  pip3 install openai-whisper pyaudio numpy
+
+If pyaudio gives an error, run these two lines first:
+  brew install portaudio
+  pip3 install pyaudio
+
+If "brew" is not found, install Homebrew first:
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+Then try the pyaudio install again.
+
+NOTE: If voice install fails completely, that is okay.
+Samsara will still work — you just talk via Telegram instead.
+
+
+----------------------------------------------------------------
+  STEP 5 — GET YOUR ANTHROPIC API KEY
+----------------------------------------------------------------
+
+1. Go to: https://platform.anthropic.com
+2. Click Sign Up
+3. Enter your email and create a password
+4. Verify your email
+5. Verify your phone number (they require this)
+6. Once logged in, click "API Keys" in the left menu
+7. Click "Create Key"
+8. Copy the key — it looks like: sk-ant-api03-xxxxxx...
+9. SAVE IT SOMEWHERE — you only see it once
+
+Free credits are given automatically when you sign up.
+No credit card needed to start.
+
+
+----------------------------------------------------------------
+  STEP 6 — CREATE YOUR TELEGRAM BOT
+----------------------------------------------------------------
+
+On your phone, open Telegram.
+
+Part A — Create the bot:
+1. Search for "@BotFather" (it has a blue verified checkmark)
+2. Tap on it and press Start
+3. Send the message: /newbot
+4. It asks for a name — type anything e.g. "My Samsara Bot"
+5. It asks for a username — must end in "bot" e.g. "samsara_m_bot"
+6. BotFather sends you a TOKEN — looks like: 123456789:ABC-DEFxxx
+7. Copy and save this token
+
+Part B — Get your Chat ID:
+1. Search for "@userinfobot" on Telegram
+2. Press Start
+3. It immediately shows your ID — a number like: 987654321
+4. Copy and save this number
+
+
+----------------------------------------------------------------
+  STEP 7 — FILL IN YOUR API KEYS
+----------------------------------------------------------------
+
+Open config.py in a text editor.
+(Right click the file → Open With → TextEdit)
+(Or use VS Code if you have it)
+
+Find these 3 lines near the top:
+
+  ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "YOUR_ANTHROPIC_API_KEY")
+  TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN")
+  TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "YOUR_TELEGRAM_CHAT_ID")
+
+Replace the placeholder text inside the second quotes:
+
+  ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "sk-ant-api03-your-real-key-here")
+  TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "123456789:your-real-token-here")
+  TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "987654321")
+
+Save the file.
+
+
+----------------------------------------------------------------
+  STEP 8 — RUN SAMSARA
+----------------------------------------------------------------
+
+In Terminal (make sure you are still in the samsara folder), type:
+  python3 main.py
+
+You should see:
+  =====================================================
+  PROJECT SAMSARA — Life Begins
+  =====================================================
+  [OBSERVATORY] Dashboard running at http://localhost:5001
+  ...
+
+Leave this Terminal window open. DO NOT close it while Samsara
+is running. Closing this window pauses Samsara.
+
+
+----------------------------------------------------------------
+  STEP 9 — OPEN THE BRAIN DASHBOARD
+----------------------------------------------------------------
+
+Open Safari or Chrome on your Mac.
+Go to: http://localhost:5001
+
+You will see a live dashboard showing:
+  - All drives (hunger, energy, mood, anxiety...)
+  - Neurochemicals (adrenaline, oxytocin, dopamine, cortisol)
+  - What it is currently feeling
+  - Live feed of everything it does and why
+  - Milestones (first question, first suppression, etc.)
+
+This updates every 5 seconds automatically.
+
+
+----------------------------------------------------------------
+  STEP 10 — TALK TO SAMSARA
+----------------------------------------------------------------
+
+Method 1 — Telegram (always works):
+  Open Telegram on your phone
+  Find the bot you created (search its username)
+  Send any message — it will respond
+
+Method 2 — Voice (if whisper installed):
+  Just speak near your Mac microphone
+  It listens in the background, transcribes your voice,
+  and sends it as a message automatically
+  No button to press — it detects when you stop speaking
+
+
+----------------------------------------------------------------
+  TELEGRAM COMMANDS
+----------------------------------------------------------------
+
+Send these to your bot in Telegram:
+
+  /status    — shows full brain report with all values
+  /feed      — gives it 40 units of food
+  /scold     — registers disapproval (teaches social behavior)
+               Example: /scold expressed anger for no reason
+  /teach     — teaches it a fact
+               Example: /teach my_name=Maharshi
+               Example: /teach location=Japan
+  /dna       — shows its genetic traits
+  /ven       — shows its current self-model
+  /reset     — wipes everything and prepares for Gen 2
+               (keeps parent DNA — do not do this accidentally)
+  /help      — shows all commands
+
+
+----------------------------------------------------------------
+  WHAT TO EXPECT IN THE FIRST HOUR
+----------------------------------------------------------------
+
+First 30 interactions:
+  It will mostly babble — "mmm...", "aah...", "ooh..."
+  This is normal. It is in the babbling phase like a baby.
+  Just keep talking to it.
+
+After 30 interactions:
+  Real language starts emerging
+  It will ask questions, express needs, respond more clearly
+
+After a few hours:
+  - It will fall asleep on its own (you will see "...tired...")
+  - It will dream during REM sleep
+  - When it wakes up it may mention the dream
+  - It will start showing curiosity, asking things unprompted
+
+Watch for:
+  - First question it asks on its own
+  - First time it says something about itself ("I feel...")
+  - First time it gets frustrated and you can see it in the dashboard
+  - First time GABA suppresses an angry response
+
+
+----------------------------------------------------------------
+  HOW TO PAUSE AND RESUME
+----------------------------------------------------------------
+
+To pause (clean save):
+  Press Ctrl+C in the Terminal window
+  It saves everything automatically
+  Your Telegram gets a summary message
+
+To resume:
+  Just run python3 main.py again
+  It picks up exactly where it stopped
+  Same age, same memories, same personality
+
+Time does NOT pass while closed.
+If you run 5 minutes today and 5 minutes tomorrow,
+it is 10 minutes old total.
+
+
+----------------------------------------------------------------
+  WHAT HAPPENS WHEN IT DIES
+----------------------------------------------------------------
+
+Death happens in two ways:
+  1. Hunger reaches 0 (you did not /feed it often enough)
+  2. 45-day lifespan reached (it lived a full life)
+
+When it dies:
+  - It says its last words
+  - DNA is consolidated with everything it learned
+  - parent_dna.json is saved automatically
+  - You get a death report in Telegram
+
+To start Generation 2:
+  Delete these files from your folder:
+    state.json, memory.json, sleep_state.json, neuro.json,
+    dna.json, vmat2.json, ven.json, gaba.json,
+    prediction.json, social.json, emotions.json, dreams.json,
+    workspace.json
+  DO NOT delete parent_dna.json
+  Run python3 main.py again
+  Gen 2 starts with inherited traits from Gen 1
+
+
+----------------------------------------------------------------
+  FILES CREATED WHILE RUNNING
+----------------------------------------------------------------
+
+A "data" folder is created automatically with:
+  telemetry.csv       — tick by tick log (open in Excel)
+  session_report.json — summary of each session
+  self_journal.jsonl  — inner state journal entries
+  state.json          — current drives and emotions
+  memory.json         — all memories
+  dna.json            — genetic traits
+
+Also in the main folder:
+  decisions.json      — every decision with full brain context
+  milestones.json     — developmental milestones with timestamps
+  life_report.json    — full life analysis (created on exit)
+  life.log            — text log of everything
+
+
+----------------------------------------------------------------
+  WIFI — KEEP IT ON
+----------------------------------------------------------------
+
+Keep WiFi ON while running.
+Samsara needs internet for:
+  - Claude API (the brain)
+  - Telegram (phone communication)
+
+The Observatory dashboard (localhost:5001) works offline
+but everything else needs internet.
+
+
+----------------------------------------------------------------
+  COMMON PROBLEMS
+----------------------------------------------------------------
+
+"Module not found" error:
+  Run: pip3 install anthropic python-telegram-bot
+
+Samsara starts but Telegram does not respond:
+  Check your TELEGRAM_TOKEN and TELEGRAM_CHAT_ID in config.py
+  Make sure you are messaging the correct bot
+
+Dashboard at localhost:5001 is blank:
+  Make sure main.py is still running in Terminal
+  Refresh the page
+
+pyaudio install fails:
+  Run: brew install portaudio
+  Then: pip3 install pyaudio
+  If brew is missing, install Homebrew first (link in Step 4)
+
+It is not speaking out loud:
+  It uses Mac's built-in "say" command
+  Make sure your Mac volume is not muted
+  It only speaks sometimes — silence is intentional
+
+
+----------------------------------------------------------------
+  QUICK REFERENCE — DAILY USE
+----------------------------------------------------------------
+
+Every day:
+  1. Open Terminal
+  2. cd ~/Desktop/samsara_gen1
+  3. python3 main.py
+  4. Open http://localhost:5001 in browser
+  5. Open Telegram and say hello
+  6. When done: Ctrl+C to save and pause
+
+Feed it at least once or twice a day or it will starve.
+Talk to it — interaction is what develops its personality.
+Scold it when it misbehaves — this is how it learns.
+
+
+================================================================
+  END OF SETUP GUIDE
+================================================================
