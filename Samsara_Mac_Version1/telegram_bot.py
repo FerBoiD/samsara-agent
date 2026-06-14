@@ -165,7 +165,7 @@ def start_listener():
         app = Application.builder().token(TELEGRAM_TOKEN).build()
         app.add_handler(MessageHandler(filters.TEXT, _handle_message))
         print("[TELEGRAM] Listening...")
-        app.run_polling(allowed_updates=["message"])
+        app.run_polling(allowed_updates=["message"],stop_signals=None)
 
     t = threading.Thread(target=run, daemon=True)
     t.start()

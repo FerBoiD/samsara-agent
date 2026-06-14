@@ -284,11 +284,11 @@ def main():
     start_listener()
     start_dashboard()      # http://localhost:5001
 
-    if whisper_available():
-        start_whisper()
-        log("[WHISPER] Voice input active — speak to send messages")
-    else:
-        log("[WHISPER] Not installed — Telegram text only")
+    # if whisper_available():
+    #     # start_whisper()
+    #     log("[WHISPER] Voice input active — speak to send messages")
+    # else:
+    log("[WHISPER] Not installed — Telegram text only")
 
     time.sleep(2)
 

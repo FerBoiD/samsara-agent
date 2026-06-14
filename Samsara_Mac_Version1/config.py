@@ -16,10 +16,18 @@ load_dotenv(BASE_DIR / ".env")
 def data_path(filename):
     return str(DATA_DIR / filename)
 
+
+
 # --- API KEYS ---
-GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY")   # free at console.groq.com
-TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "YOUR_TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "YOUR_TELEGRAM_CHAT_ID")
+#Groq API:  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
+#Telegram token:  8910481878:AAGsSSqYxDKGd4N-1jmGh5QkYaSja-pcp2k
+#Chat ID: 6838543982
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
+TELEGRAM_TOKEN    = os.getenv("TELEGRAM_TOKEN", "8910481878:AAGsSSqYxDKGd4N-1jmGh5QkYaSja-pcp2k")
+TELEGRAM_CHAT_ID  = os.getenv("TELEGRAM_CHAT_ID", "6838543982")
+
+
 
 # --- LIFESPAN ---
 # 1 Kora-day = 3 real human hours
