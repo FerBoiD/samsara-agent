@@ -39,6 +39,7 @@ from whisper_input  import (start_continuous as start_whisper,
                              is_available as whisper_available)
 from telegram_bot   import (send, send_status, send_birth_notice,
                              start_listener, get_incoming)
+from godot_bridge   import start_bridge
 from config         import TICK_INTERVAL_SECONDS, DATA_DIR
 
 logging.basicConfig(
@@ -290,6 +291,20 @@ def main():
     # Start all communication + observation systems
     start_listener()
     start_dashboard()      # http://localhost:5001
+
+    # Godot sphere bridge — streams live drive state to port 9999
+    def _godot_get_state():
+        return drives.summary()
+
+    def _godot_on_feed():
+        hunger_before = drives.summary()["hunger"]
+        drives.feed(40)
+        prediction.register_feed_event()
+        neuro.trigger_feed_reward(hunger_before)
+        emotions.trigger_warmth(neuro.state["oxytocin"])
+        log("[GODOT] Feed via sphere bowl")
+
+    start_bridge(_godot_get_state, on_feed=_godot_on_feed)
 
     # if whisper_available():
     #     # start_whisper()
