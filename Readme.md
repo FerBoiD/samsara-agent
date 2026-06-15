@@ -175,38 +175,53 @@ Full setup instructions in `SETUP.txt`.
 
 ```
 samsara-agent/
-├── main.py              # Main loop — ties everything together
-├── config.py            # All settings and API keys
-├── brain.py             # LLM integration — converts state to language
-│                        # includes inner monologue (Ollama local layer)
-├── drives.py            # Core drive system
-├── neurochemicals.py    # Adrenaline, oxytocin, dopamine, cortisol
-├── emotions.py          # Emergent emotion events
-├── vmat2.py             # Deliberation buffer
-├── ven.py               # Self-observation loop
-├── gaba.py              # Suppression system
-├── prediction.py        # Prediction engine + theory of mind caretaker model
-├── social.py            # Attachment via interaction signatures
-├── memory.py            # Short/long term + emotional memory
-├── sleep.py             # Sleep cycles + memory consolidation
-├── narrative.py         # Self-narrative — causal tagging of speech events,
-│                        # sleep-cycle story synthesis, narrative recall in prompt
-├── auto_doc.py          # Auto-documentation — daily log + generation report
-│                        # written automatically, no manual action needed
-├── dna.py               # Generational inheritance
-├── dreams.py            # REM dream generation
-├── cry.py               # Hardwired distress — bypasses LLM
-├── babble.py            # Pre-language vocal mimicry
-├── free_time.py         # Autonomous behavior gating (when to act)
-├── workspace.py         # Global workspace integration layer
-├── telemetry.py         # CSV + journal logging
-├── observatory.py       # Live browser dashboard
-├── whisper_input.py     # Local voice recognition (disabled in Gen 1 — feedback loop)
-├── speaker.py           # Mac TTS output
-├── telegram_bot.py      # Phone communication
-├── QUICKSTART.md        # Quick reference
-├── SETUP.txt            # Plain English setup guide
-└── requirements.txt     # Dependencies
+├── Samsara_Mac_Version1/        # Python agent
+│   ├── main.py                  # Main loop — ties everything together
+│   ├── config.py                # All settings and API keys
+│   ├── brain.py                 # LLM (Groq) + Ollama inner monologue
+│   ├── drives.py                # Core drive system (hunger, energy, mood…)
+│   ├── body.py                  # Body sensations — thirst, temperature,
+│   │                            # muscle fatigue, nausea, immune, sickness,
+│   │                            # blood sugar crash, restlessness, jet lag
+│   ├── neurochemicals.py        # Adrenaline, oxytocin, dopamine, cortisol
+│   ├── emotions.py              # Emergent emotion events
+│   ├── vmat2.py                 # Deliberation buffer
+│   ├── ven.py                   # Self-observation loop
+│   ├── gaba.py                  # Suppression system
+│   ├── prediction.py            # Prediction engine + theory of mind
+│   ├── social.py                # Attachment via interaction signatures
+│   ├── memory.py                # Short/long term + emotional memory
+│   ├── sleep.py                 # Sleep cycles + memory consolidation
+│   ├── narrative.py             # Self-narrative — causal tagging + sleep synthesis
+│   ├── auto_doc.py              # Auto-documentation (daily log + life report)
+│   ├── godot_bridge.py          # TCP server — streams state to Godot sphere
+│   ├── dna.py                   # Generational inheritance
+│   ├── dreams.py                # REM dream generation
+│   ├── cry.py                   # Hardwired distress — bypasses LLM
+│   ├── babble.py                # Pre-language vocal mimicry
+│   ├── free_time.py             # Autonomous behavior gating
+│   ├── workspace.py             # Global workspace integration layer
+│   ├── telemetry.py             # CSV + journal logging
+│   ├── observatory.py           # Live browser dashboard
+│   ├── whisper_input.py         # Voice input (disabled — feedback loop)
+│   ├── speaker.py               # Mac TTS output
+│   ├── telegram_bot.py          # Phone communication
+│   ├── QUICKSTART.md            # Quick reference (start here)
+│   └── requirements.txt         # pip dependencies
+│
+└── Godot_Sphere/                # Virtual world (Godot 4.3+)
+    ├── project.godot
+    ├── scripts/
+    │   ├── Main.gd              # Root — wires all signals
+    │   ├── DrivesBridge.gd      # TCP client — receives state from Python
+    │   ├── KoraBody.gd          # 15-state machine — Kora moves and reacts
+    │   ├── DayNight.gd          # Real-clock day/night cycle
+    │   ├── SphereEnv.gd         # Sphere wall tint (mood, sickness, cold)
+    │   ├── FoodBowl.gd          # Food bowl — click to feed
+    │   ├── WaterBowl.gd         # Water bowl — click to give water
+    │   ├── HUD.gd               # Tab-toggle stats overlay
+    │   └── ChatOverlay.gd       # Always-visible chat bar at bottom
+    └── GODOT_SETUP.md           # Step-by-step scene assembly guide
 ```
 
 ---
@@ -237,13 +252,16 @@ This project engages with several open research questions:
 | Inner monologue | Active — Ollama llama3.2:3b runs locally before Groq speaks |
 | Self-narrative | Active — causal tagging of all speech, sleep-cycle synthesis |
 | Theory of mind | Active — caretaker model tracks response delays, feed intervals, time-of-day patterns |
+| Body system | Active — thirst, body temperature (circadian), muscle fatigue, nausea, blood sugar crash, immune, sickness, restlessness, jet lag |
 | Auto-documentation | Active — daily log + generation report write themselves |
 | Telegram | Active |
 | Observatory dashboard | Active (localhost:5001) |
+| Godot sphere (virtual world) | Built — white sphere, day/night cycle, Kora walks and reacts |
+| Godot chat UI | Built — type in Godot window, messages reach Kora directly |
 | RAG memory (ChromaDB) | Planned |
 | LoRA fine-tuning | Planned (Mac M5, between generations) |
-| Lenovo 24/7 deployment | Planned (Ubuntu + Ollama) |
-| Godot virtual sphere | Planned |
+| Lenovo 24/7 deployment | Planned — Python on Lenovo, Godot on Mac over LAN |
+| Godot camera feed | Planned — real-world camera projected on sphere walls |
 
 ---
 
