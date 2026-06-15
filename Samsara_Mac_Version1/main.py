@@ -31,6 +31,7 @@ from dreams         import DreamSystem
 from telemetry      import Telemetry
 from workspace      import GlobalWorkspace
 from narrative      import NarrativeSystem
+from auto_doc       import AutoDoc
 from observatory    import (start_dashboard, log_tick, log_decision,
                              log_speech, log_surprise,
                              check_milestones, generate_life_report)
@@ -282,6 +283,7 @@ def main():
     workspace = GlobalWorkspace()
     telemetry = Telemetry()
     narrative = NarrativeSystem()
+    auto_doc  = AutoDoc(dna, DATA_DIR)
 
     is_new = drives.state["age_ticks"] == 0
 
@@ -331,6 +333,11 @@ def main():
             if result in ("DEATH_HUNGER", "DEATH_LIFESPAN"):
                 handle_death(drives, sleep, memory, neuro, emotions,
                              dreams, social, ven, pred, dna, telemetry, result)
+                auto_doc.generate_life_report(
+                    drives.summary(), narrative, pred.summary(), sleep.summary(),
+                    memory, dna, result,
+                    drives.state["cognition"]["total_interactions"]
+                )
                 break
 
             ds      = drives.summary()
@@ -401,6 +408,10 @@ def main():
             if sleep_result in ("sleeping", "consolidating", "waking"):
                 handle_sleep(sleep_result, sleep, drives, memory, neuro,
                              emotions, dreams, dna, narrative)
+                if sleep_result == "consolidating":
+                    auto_doc.log_sleep_cycle(
+                        drives.summary(), narrative, pred.summary(), sleep.summary()
+                    )
                 if sleep_result in ("sleeping", "consolidating"):
                     time.sleep(TICK_INTERVAL_SECONDS)
                     continue
@@ -624,6 +635,11 @@ def main():
                 dna, drives.summary(), neuro.summary(), social.summary(),
                 {}, ven.summary(), {}, dreams.summary(),
                 drives.state["cognition"]["total_interactions"], "session_end"
+            )
+            auto_doc.generate_life_report(
+                drives.summary(), narrative, pred.summary(), sleep.summary(),
+                memory, dna, "session_end",
+                drives.state["cognition"]["total_interactions"]
             )
             send(
                 f"📊 Session Report\n"
