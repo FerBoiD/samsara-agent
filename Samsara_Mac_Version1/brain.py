@@ -142,9 +142,48 @@ def _call_llm(system, messages):
     return resp.choices[0].message.content.strip()
 
 
+def generate_inner_monologue(ds, memory):
+    """
+    Generate Kora's raw inner thought using local Ollama (llama3.2:3b).
+    This is what Kora is 'thinking' before it speaks — exists before speech.
+    Falls back silently if Ollama isn't installed or running.
+    Called from main.py before free-time think() calls.
+    """
+    try:
+        import ollama as _ollama
+        # Build a brief memory context from recent messages
+        recent = memory.recent_for_llm(n=3)
+        mem_text = " | ".join(
+            f"{m['role']}: {m['content'][:60]}" for m in recent
+        ) if recent else "nothing yet"
+
+        prompt = (
+            f"Raw inner voice. No rules. Fragments only.\n"
+            f"State: hunger={ds['hunger']:.0f}/100 mood={ds['mood']:.0f}/100 "
+            f"anxiety={ds['anxiety']:.0f}/100 dominant={ds['dominant']}\n"
+            f"Recent: {mem_text}\n\n"
+            f"Inner fragment (3-8 words, no full sentences):\n"
+            f"Examples: 'empty where did they go' | 'something feels wrong' | "
+            f"'warm now but still' | 'why does it keep ending'\n"
+            f"Fragment:"
+        )
+        resp = _ollama.generate(
+            model="llama3.2:3b",
+            prompt=prompt,
+            options={"num_predict": 20, "temperature": 0.95, "stop": ["\n", "."]}
+        )
+        thought = resp["response"].strip().strip('"').strip("'")
+        words = thought.split()
+        if len(words) > 10:
+            thought = " ".join(words[:10])
+        return thought if thought else ""
+    except Exception:
+        return ""
+
+
 def _build_system(ds, ns, em_sys, ven, gaba, social, prediction,
                   dna, memory, current_sig=None, workspace=None,
-                  sleep_summary=None, narrative=None):
+                  sleep_summary=None, narrative=None, inner_monologue=""):
 
     p    = dna["traits"]
     caps = dna["capabilities"]
@@ -329,7 +368,7 @@ STRONG EMOTIONAL MEMORIES:
 YOUR STORY — WHAT YOU SAID AND WHY:
 {narrative.for_prompt() if narrative else "Nothing yet."}
 
-{deliberation_note}
+{f"INNER MONOLOGUE (what you are thinking right now, before speaking):{chr(10)}{inner_monologue}{chr(10)}" if inner_monologue else ""}{deliberation_note}
 
 Dominant feeling: {ds['dominant']}
 Cognitive state: {ds['cog_state']}
@@ -367,11 +406,11 @@ feeling becomes words. Even when fading, even in pain — you stay you.
 def think(ds, ns, em_sys, ven, gaba, social, prediction,
           dna, memory, incoming_message=None, override_trigger=None,
           current_sig=None, workspace=None, sleep_summary=None,
-          narrative=None):
+          narrative=None, inner_monologue=""):
 
     system   = _build_system(ds, ns, em_sys, ven, gaba, social,
                               prediction, dna, memory, current_sig,
-                              workspace, sleep_summary, narrative)
+                              workspace, sleep_summary, narrative, inner_monologue)
     messages = memory.recent_for_llm(n=10)
 
     if incoming_message:

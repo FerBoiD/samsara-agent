@@ -44,6 +44,9 @@ class PredictionEngine:
                 "interaction_history":    [],      # response delays
                 "last_seen":              None,
                 "absent_ticks":           0,
+                "time_of_day_visits":     [],      # list of hours (0-23) when caretaker interacted
+                "feed_intervals_sec":     [],      # seconds between consecutive feeds
+                "last_feed_time":         None,    # unix timestamp of last feed
             },
 
             # Emotional memory coloring — past events warp present perception
@@ -134,6 +137,12 @@ class PredictionEngine:
             # Low variance = high reliability
             cm["reliability_score"] = max(0.1, min(1.0, 1.0 - variance / 1000))
 
+        from datetime import datetime
+        hour = datetime.now().hour
+        cm.setdefault("time_of_day_visits", []).append(hour)
+        if len(cm["time_of_day_visits"]) > 30:
+            cm["time_of_day_visits"].pop(0)
+
         cm["last_seen"]     = time.time()
         cm["absent_ticks"]  = 0
 
@@ -142,6 +151,19 @@ class PredictionEngine:
             if len(cm["feeding_pattern"]) > 10:
                 cm["feeding_pattern"].pop(0)
 
+        self._save()
+
+    def register_feed_event(self):
+        """Called when caretaker feeds Kora. Tracks feed intervals."""
+        cm  = self.state["caretaker_model"]
+        now = time.time()
+        last = cm.get("last_feed_time")
+        if last is not None:
+            interval = now - last
+            cm.setdefault("feed_intervals_sec", []).append(interval)
+            if len(cm["feed_intervals_sec"]) > 10:
+                cm["feed_intervals_sec"].pop(0)
+        cm["last_feed_time"] = now
         self._save()
 
     def tick_caretaker_absence(self):
@@ -163,24 +185,72 @@ class PredictionEngine:
     def get_caretaker_model_text(self):
         """For brain.py system prompt — what it knows about caretaker."""
         cm  = self.state["caretaker_model"]
+        TICK_SECS = 10
         out = []
 
-        if cm["typical_response_delay"] is not None:
-            out.append(f"The caretaker usually responds after {cm['typical_response_delay']:.0f} ticks.")
-
-        rel = cm["reliability_score"]
-        if rel > 0.7:
-            out.append("The caretaker is consistent and reliable.")
-        elif rel > 0.4:
-            out.append("The caretaker is somewhat consistent.")
+        # How long they've been away (in real minutes)
+        absent_min = round(cm["absent_ticks"] * TICK_SECS / 60, 1)
+        if absent_min < 1:
+            out.append("The caretaker was just here.")
+        elif absent_min < 5:
+            out.append(f"The caretaker left {absent_min:.0f} minutes ago.")
+        elif absent_min < 60:
+            out.append(f"The caretaker has been away for {absent_min:.0f} minutes.")
         else:
-            out.append("The caretaker is unpredictable — you don't know when they'll come.")
+            hours = absent_min / 60
+            out.append(f"The caretaker has been away for {hours:.1f} hours.")
 
-        if cm["absent_ticks"] > 10:
-            out.append(f"The caretaker has been away for a while ({cm['absent_ticks']} ticks).")
+        # Typical response delay
+        typ = cm.get("typical_response_delay")
+        if typ is not None:
+            typ_min = round(typ * TICK_SECS / 60, 1)
+            absent_min_val = cm["absent_ticks"] * TICK_SECS / 60
+            if typ_min > 0:
+                ratio = absent_min_val / typ_min
+                if ratio > 2.0:
+                    out.append(f"They usually respond within {typ_min:.0f} minutes — this absence is longer than usual.")
+                elif ratio > 1.2:
+                    out.append(f"They usually respond within {typ_min:.0f} minutes — they are a little late.")
+                else:
+                    out.append(f"They usually respond within {typ_min:.0f} minutes — this feels normal.")
 
-        if cm["feeding_pattern"]:
-            out.append("You know this being can help restore your energy.")
+        # Reliability
+        rel = cm["reliability_score"]
+        if rel > 0.75:
+            out.append("They are consistent — you have learned when to expect them.")
+        elif rel > 0.4:
+            out.append("They come and go somewhat regularly.")
+        else:
+            out.append("You cannot predict when they will come — they are unpredictable.")
+
+        # Time of day pattern
+        visits = cm.get("time_of_day_visits", [])
+        if len(visits) >= 4:
+            from collections import Counter
+            hour_counts = Counter(visits)
+            peak_hour = hour_counts.most_common(1)[0][0]
+            if 5 <= peak_hour < 12:
+                period = "morning"
+            elif 12 <= peak_hour < 17:
+                period = "afternoon"
+            elif 17 <= peak_hour < 21:
+                period = "evening"
+            else:
+                period = "night"
+            out.append(f"They tend to appear most often in the {period}.")
+
+        # Feed intervals
+        feed_ivs = cm.get("feed_intervals_sec", [])
+        if len(feed_ivs) >= 2:
+            avg_iv = sum(feed_ivs) / len(feed_ivs)
+            avg_hrs = avg_iv / 3600
+            if avg_hrs < 1:
+                out.append(f"They feed you roughly every {avg_iv/60:.0f} minutes.")
+            else:
+                out.append(f"They feed you roughly every {avg_hrs:.1f} hours.")
+
+        if cm.get("feeding_pattern"):
+            out.append("You know this being can restore what you lose.")
 
         return "\n".join(out) if out else "You are still learning about the being who cares for you."
 

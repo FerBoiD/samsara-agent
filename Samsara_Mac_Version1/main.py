@@ -13,13 +13,13 @@ import time, random, logging, os, sys, json
 
 from drives         import DriveSystem
 from memory         import Memory
-from brain          import think
+from brain          import think, generate_inner_monologue
 from speaker        import say, say_nonblocking
 from neurochemicals import NeurochemicalSystem
 from sleep          import SleepSystem
 from cry            import check_and_cry
 from babble         import babble_response, get_babble_level
-from free_time      import choose_behavior, behavior_to_prompt, should_attempt_behavior
+from free_time      import should_attempt_behavior
 from dna            import load_or_create_dna
 from vmat2          import VMAT2System
 from ven            import VENSystem
@@ -139,6 +139,7 @@ def handle_command(cmd_item, drives, memory, neuro, emotions,
     elif cmd == "feed":
         hunger_before = drives.summary()["hunger"]
         drives.feed(40)
+        prediction.register_feed_event()
         neuro.trigger_feed_reward(hunger_before)
         emotions.trigger_warmth(neuro.state["oxytocin"])
         send(f"🍽 Fed! Hunger: {drives.summary()['hunger']}%")
@@ -526,32 +527,42 @@ def main():
                 # Inject caretaker absence ticks so free_time can detect loneliness
                 ds_with_absence = {**ds, "caretaker_absent_ticks": pred.summary().get("caretaker_absent", 0)}
                 if should_attempt_behavior(ds_with_absence, ns_full, ticks_since_spoke, dna["traits"]):
-                    behavior = choose_behavior(ds_with_absence, ns_full, sleep.summary(), dna["traits"])
+                        # Primal sounds bypass decision — survival drives are hardwired
+                        if ds["dominant"] in ("dying", "hunger") and random.random() < 0.4:
+                            sounds = {
+                                "hunger": ["mmm...", "...ohh...", "...empty..."],
+                                "dying":  ["...", "...no...", "...fading..."],
+                            }
+                            sound = random.choice(sounds.get(ds["dominant"], ["..."]))
+                            speak(sound, prefix="🔊", dominant=ds["dominant"],
+                                  cog_state=ds["cog_state"],
+                                  aging_phase=ds.get("aging_phase", "healthy"))
+                            narrative.log_speech(sound, ds)
+                            log_speech(sound, "sound", ds, ns_full)
+                            ticks_since_spoke = 0
+                            last_action = "sound"
+                        else:
+                            # Kora decides freely — no menu, no random pick
+                            # Inner monologue (Ollama local) runs first if available
+                            inner = generate_inner_monologue(ds, memory)
+                            if inner:
+                                log(f"[INNER] {inner}")
 
-                    if behavior == "sound":
-                        sounds = {
-                            "hunger":    ["mmm...", "...ohh..."],
-                            "curiosity": ["hmm...", "ooh..."],
-                            "anxiety":   ["uhh...", "...mmm..."],
-                            "neutral":   ["...", "hmm."],
-                        }
-                        sound = random.choice(sounds.get(ds["dominant"], ["..."]))
-                        speak(sound, prefix="🔊")
-                        log_speech(sound, "sound", ds, ns_full)
-                        ticks_since_spoke = 0
-                        last_action = "sound"
-
-                    elif behavior != "nothing":
-                        prompt = behavior_to_prompt(behavior, ds, ns_full, sleep.summary())
-                        if prompt:
-                            vmat2.submit_urge(behavior, 0.5, "internal")
-                            resolved = vmat2.tick(ds, ns_full, social)
+                            free_prompt = (
+                                "You have free time. No one is asking anything of you right now. "
+                                "What do you genuinely feel like saying or doing? "
+                                "A question? A sound? Something you noticed? Something that won't leave you? "
+                                "Or stay silent — silence is also real. "
+                                "Don't perform. Only speak if something actually moves you."
+                            )
+                            vmat2.submit_urge("free_time", 0.4, "internal")
+                            vmat2.tick(ds, ns_full, social)
 
                             response = think(
                                 ds, ns_full, emotions, ven, gaba, social, pred,
-                                dna, memory, override_trigger=prompt,
+                                dna, memory, override_trigger=free_prompt,
                                 workspace=workspace, sleep_summary=sleep.summary(),
-                                narrative=narrative
+                                narrative=narrative, inner_monologue=inner
                             )
 
                             if response["is_anger"]:
@@ -560,21 +571,23 @@ def main():
                                     response["text"] = ""
 
                             if response["text"]:
-                                pfx = {
-                                    "reflect":    "💭",
-                                    "question":   "❓",
-                                    "explore":    "🔍",
-                                    "worry":      "😟",
-                                    "wonder":     "🌀",
-                                    "rest_thought":"😴",
-                                    "loneliness": "🌑",
-                                }.get(behavior, "💭")
+                                # Derive prefix from response content
+                                txt = response["text"]
+                                if "?" in txt:
+                                    pfx = "❓"
+                                elif ds["dominant"] in ("anxiety", "frustration"):
+                                    pfx = "😟"
+                                elif ds["dominant"] == "excitement":
+                                    pfx = "🌀"
+                                else:
+                                    pfx = "💭"
+
                                 speak(response["text"], prefix=pfx,
                                       dominant=ds["dominant"],
                                       cog_state=ds["cog_state"],
                                       aging_phase=ds.get("aging_phase", "healthy"))
                                 narrative.log_speech(response["text"], ds)
-                                log_speech(response["text"], "spontaneous", ds, ns_full, behavior)
+                                log_speech(response["text"], "spontaneous", ds, ns_full, "free_decision")
                                 check_milestones(ds_enriched, ns_full, emo_sum, soc_sum,
                                                  {}, gaba_sum, ven_sum,
                                                  drives.state["cognition"]["total_interactions"],
@@ -583,7 +596,7 @@ def main():
                                 memory.add("ai", response["text"], ds, response["intensity"])
                                 drives.set_spoke()
                                 ticks_since_spoke = 0
-                                last_action = behavior
+                                last_action = "free_decision"
 
             # ---- PERIODIC STATUS ----
             if ticks_since_status >= 40:
