@@ -178,27 +178,33 @@ samsara-agent/
 ├── main.py              # Main loop — ties everything together
 ├── config.py            # All settings and API keys
 ├── brain.py             # LLM integration — converts state to language
+│                        # includes inner monologue (Ollama local layer)
 ├── drives.py            # Core drive system
 ├── neurochemicals.py    # Adrenaline, oxytocin, dopamine, cortisol
 ├── emotions.py          # Emergent emotion events
 ├── vmat2.py             # Deliberation buffer
 ├── ven.py               # Self-observation loop
 ├── gaba.py              # Suppression system
-├── prediction.py        # Prediction engine + caretaker model
+├── prediction.py        # Prediction engine + theory of mind caretaker model
 ├── social.py            # Attachment via interaction signatures
 ├── memory.py            # Short/long term + emotional memory
 ├── sleep.py             # Sleep cycles + memory consolidation
+├── narrative.py         # Self-narrative — causal tagging of speech events,
+│                        # sleep-cycle story synthesis, narrative recall in prompt
+├── auto_doc.py          # Auto-documentation — daily log + generation report
+│                        # written automatically, no manual action needed
 ├── dna.py               # Generational inheritance
 ├── dreams.py            # REM dream generation
 ├── cry.py               # Hardwired distress — bypasses LLM
 ├── babble.py            # Pre-language vocal mimicry
-├── free_time.py         # Autonomous behavior when alone
+├── free_time.py         # Autonomous behavior gating (when to act)
 ├── workspace.py         # Global workspace integration layer
 ├── telemetry.py         # CSV + journal logging
 ├── observatory.py       # Live browser dashboard
-├── whisper_input.py     # Local voice recognition
+├── whisper_input.py     # Local voice recognition (disabled in Gen 1 — feedback loop)
 ├── speaker.py           # Mac TTS output
 ├── telegram_bot.py      # Phone communication
+├── QUICKSTART.md        # Quick reference
 ├── SETUP.txt            # Plain English setup guide
 └── requirements.txt     # Dependencies
 ```
@@ -221,12 +227,23 @@ This project engages with several open research questions:
 
 ## Current Status
 
-- Gen 1 running on MacBook Pro M5
-- Architecture: fully implemented
-- Voice: Groq Llama 3.3 70B
-- Communication: Telegram
-- Observatory dashboard: active
-- Physical body: planned (Raspberry Pi, Gen 2)
+| System | Status |
+|---|---|
+| Core drives + neurochemicals | Live (Gen 1) |
+| Sleep cycles | Fixed — minimum 20 min awake before sleep pressure builds |
+| Voice input (Whisper) | Disabled — feedback loop (Kora heard its own speech) |
+| Voice output (Mac TTS) | Active |
+| Free decision | Active — LLM chooses freely in unstructured time, no random picker |
+| Inner monologue | Active — Ollama llama3.2:3b runs locally before Groq speaks |
+| Self-narrative | Active — causal tagging of all speech, sleep-cycle synthesis |
+| Theory of mind | Active — caretaker model tracks response delays, feed intervals, time-of-day patterns |
+| Auto-documentation | Active — daily log + generation report write themselves |
+| Telegram | Active |
+| Observatory dashboard | Active (localhost:5001) |
+| RAG memory (ChromaDB) | Planned |
+| LoRA fine-tuning | Planned (Mac M5, between generations) |
+| Lenovo 24/7 deployment | Planned (Ubuntu + Ollama) |
+| Godot virtual sphere | Planned |
 
 ---
 

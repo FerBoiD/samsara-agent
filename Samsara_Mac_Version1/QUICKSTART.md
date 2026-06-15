@@ -28,15 +28,34 @@
 /help     — all commands
 
 ## Files Created During Life
-data/state.json          — current drives/emotions
-data/memory.json         — all memories
-data/dna.json            — genetics
-data/telemetry.csv       — tick-by-tick CSV (open in Excel)
-data/self_journal.jsonl  — inner state journal
-data/session_report.json — end of session summary
-decisions.json           — every decision + why
-milestones.json          — developmental milestones
-life_report.json         — full life analysis
+data/state.json                — current drives/emotions
+data/memory.json               — all memories
+data/dna.json                  — genetics
+data/narrative.json            — speech events + sleep cycle stories
+data/telemetry.csv             — tick-by-tick CSV (open in Excel)
+data/self_journal.jsonl        — inner state journal
+data/session_report.json       — end of session summary
+data/docs/gen1_daily_log.md    — readable daily log (auto-updated every sleep cycle)
+data/docs/gen1_life_report.md  — full generation report (auto-written at death)
+decisions.json                 — every decision + why
+milestones.json                — developmental milestones
+life_report.json               — observatory life analysis
+
+## Auto Documentation
+Two markdown files write themselves — you do nothing:
+
+  data/docs/gen1_daily_log.md
+    One entry per sleep cycle. Drives state, recent speech with causal
+    context, caretaker absence time. Open in VS Code while Kora runs.
+
+  data/docs/gen1_life_report.md
+    Written at death or Ctrl+C. Full generation record:
+    stats, emotional distribution, strongest memories, sleep cycle
+    stories in Kora's words, DNA passed forward, research metrics,
+    Groq-written narrative paragraph summarizing the life.
+
+Files are named by generation number — gen2_daily_log.md for Gen 2, etc.
+They never overwrite each other.
 
 ## Gen 2
 When Gen 1 dies, parent_dna.json is saved.
