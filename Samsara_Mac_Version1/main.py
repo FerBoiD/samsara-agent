@@ -39,7 +39,8 @@ from whisper_input  import (start_continuous as start_whisper,
                              is_available as whisper_available)
 from telegram_bot   import (send, send_status, send_birth_notice,
                              start_listener, get_incoming)
-from godot_bridge   import start_bridge
+from godot_bridge   import start_bridge, get_next_godot_message
+from body           import BodySystem
 from config         import TICK_INTERVAL_SECONDS, DATA_DIR
 
 logging.basicConfig(
@@ -114,7 +115,7 @@ def handle_sleep(sleep_result, sleep_sys, drives, memory, neuro,
 #  COMMAND HANDLER
 # ----------------------------------------------------------
 def handle_command(cmd_item, drives, memory, neuro, emotions,
-                   social, gaba, vmat2, ven, prediction, dreams, dna):
+                   social, gaba, vmat2, ven, prediction, dreams, dna, body=None):
     cmd = cmd_item["cmd"]
 
     if cmd == "status":
@@ -176,6 +177,12 @@ def handle_command(cmd_item, drives, memory, neuro, emotions,
             f"It will influence future deliberation."
         )
         log(f"SCOLD: {reason}")
+
+    elif cmd == "drink":
+        body.drink()
+        neuro.on_kind_interaction()
+        send(f"💧 Kora drank. Thirst: {body.summary()['thirst']:.0f}%")
+        log("CMD: drink")
 
     elif cmd == "teach":
         key = cmd_item.get("key", "")
@@ -285,6 +292,7 @@ def main():
     telemetry = Telemetry()
     narrative = NarrativeSystem()
     auto_doc  = AutoDoc(dna, DATA_DIR)
+    body      = BodySystem(dna)
 
     is_new = drives.state["age_ticks"] == 0
 
@@ -294,7 +302,7 @@ def main():
 
     # Godot sphere bridge — streams live drive state to port 9999
     def _godot_get_state():
-        return drives.summary()
+        return {**drives.summary(), **body.summary()}
 
     def _godot_on_feed():
         hunger_before = drives.summary()["hunger"]
@@ -304,7 +312,13 @@ def main():
         emotions.trigger_warmth(neuro.state["oxytocin"])
         log("[GODOT] Feed via sphere bowl")
 
-    start_bridge(_godot_get_state, on_feed=_godot_on_feed)
+    def _godot_on_drink():
+        body.drink()
+        neuro.on_kind_interaction()
+        send(f"💧 Kora drank. Thirst: {body.summary()['thirst']:.0f}%")
+        log("[GODOT] Drink via sphere water bowl")
+
+    start_bridge(_godot_get_state, on_feed=_godot_on_feed, on_drink=_godot_on_drink)
 
     # if whisper_available():
     #     # start_whisper()
@@ -360,6 +374,7 @@ def main():
             ns_full = neuro.summary()
 
             neuro.tick(ds)
+            body.tick(ds, ns_full, sleep.summary())
             emotions.tick(ds, ns_full, social.summary())
             ven.tick(ds, last_action, ns_full)
             gaba.check_abstract_motivations(ds, ns_full)
@@ -438,13 +453,17 @@ def main():
                 if ds["hunger"] < 15:
                     pred.add_fear_association("hunger_low", "danger")
 
-            # ---- INCOMING (Telegram + Voice) ----
+            # ---- INCOMING (Telegram + Godot chat) ----
             incoming = get_incoming()
+            if not incoming:
+                godot_text = get_next_godot_message()
+                if godot_text:
+                    incoming = {"type": "message", "text": godot_text}
 
             if incoming:
                 if incoming["type"] == "cmd":
                     handle_command(incoming, drives, memory, neuro, emotions,
-                                   social, gaba, vmat2, ven, pred, dreams, dna)
+                                   social, gaba, vmat2, ven, pred, dreams, dna, body=body)
 
                 elif incoming["type"] == "message":
                     human_text  = incoming["text"]
@@ -497,7 +516,7 @@ def main():
                                      dna, memory, incoming_message=human_text,
                                      current_sig=current_sig, workspace=workspace,
                                      sleep_summary=sleep.summary(),
-                                     narrative=narrative)
+                                     narrative=narrative, body=body)
 
                     # GABA anger suppression (consequence learning feeds in via social)
                     gaba_attempted = response["is_anger"]
@@ -588,7 +607,7 @@ def main():
                                 ds, ns_full, emotions, ven, gaba, social, pred,
                                 dna, memory, override_trigger=free_prompt,
                                 workspace=workspace, sleep_summary=sleep.summary(),
-                                narrative=narrative, inner_monologue=inner
+                                narrative=narrative, inner_monologue=inner, body=body
                             )
 
                             if response["is_anger"]:
@@ -633,6 +652,7 @@ def main():
 
         except KeyboardInterrupt:
             log("Interrupted — saving everything...")
+            body.on_session_close()
             send("⏸ Session ending. Consolidating...")
             sleep.full_consolidation(
                 memory, dna,

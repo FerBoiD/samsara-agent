@@ -109,12 +109,15 @@ func _create_ui() -> void:
 
 	# Drive bars
 	var drive_defs := [
-		["hunger",      Color(1.0,  0.6,  0.1)],
-		["energy",      Color(0.2,  0.9,  0.4)],
-		["mood",        Color(0.5,  0.7,  1.0)],
-		["anxiety",     Color(0.9,  0.9,  0.2)],
-		["boredom",     Color(0.5,  0.5,  0.6)],
-		["excitement",  Color(0.1,  0.9,  1.0)],
+		["hunger",        Color(1.0,  0.6,  0.1)],
+		["thirst",        Color(0.3,  0.75, 1.0)],
+		["energy",        Color(0.2,  0.9,  0.4)],
+		["mood",          Color(0.5,  0.7,  1.0)],
+		["anxiety",       Color(0.9,  0.9,  0.2)],
+		["boredom",       Color(0.5,  0.5,  0.6)],
+		["nausea",        Color(0.5,  0.85, 0.4)],
+		["muscle_fatigue",Color(0.8,  0.5,  0.3)],
+		["sickness",      Color(0.65, 0.75, 0.55)],
 	]
 	for dd in drive_defs:
 		_create_bar_row(vbox, dd[0], dd[1])

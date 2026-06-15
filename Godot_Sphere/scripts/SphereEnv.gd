@@ -39,34 +39,40 @@ func _ready() -> void:
 
 
 func on_drives_updated(d: Dictionary) -> void:
-	var mood:      float  = d.get("mood",      0.0)
-	var anxiety:   float  = d.get("anxiety",  10.0)
-	var hunger:    float  = d.get("hunger",   80.0)
+	var mood:      float  = d.get("mood",       0.0)
+	var anxiety:   float  = d.get("anxiety",   10.0)
+	var hunger:    float  = d.get("hunger",    80.0)
 	var excitement:float  = d.get("excitement", 5.0)
-	var dominant:  String = d.get("dominant", "neutral")
-	var sleeping:  bool   = d.get("sleeping", false)
+	var dominant:  String = d.get("dominant",  "neutral")
+	var sleeping:  bool   = d.get("sleeping",  false)
+	var sickness:  float  = d.get("sickness",   0.0)
+	var body_temp: float  = d.get("body_temp", 37.0)
 
 	# --- Target wall color ---
 	if dominant == "dying":
-		_target_color = Color(0.42, 0.08, 0.08)   # dark blood red
+		_target_color = Color(0.42, 0.08, 0.08)     # dark blood red
 	elif sleeping:
-		_target_color = Color(0.08, 0.1, 0.2)     # deep navy
+		_target_color = Color(0.08, 0.10, 0.20)     # deep navy
+	elif sickness > 35.0:
+		# Pale sickly green tint when ill
+		var t := sickness / 100.0
+		_target_color = Color.WHITE.lerp(Color(0.82, 0.92, 0.80), t * 0.4)
+	elif body_temp < 36.1:
+		# Cold blue tint when shivering
+		_target_color = Color.WHITE.lerp(Color(0.85, 0.90, 1.00), 0.35)
 	elif hunger < 20.0:
-		# Dim red when in pain
 		var intensity := 1.0 - hunger / 20.0
-		_target_color = Color.WHITE.lerp(Color(0.6, 0.15, 0.1), intensity * 0.5)
+		_target_color = Color.WHITE.lerp(Color(0.60, 0.15, 0.10), intensity * 0.5)
 	else:
 		# Mood → colour temperature
-		# mood: -100 (sad cold blue) to +100 (happy warm cream)
-		var mood_norm := (mood + 100.0) / 200.0   # 0..1
-		var warm := Color(0.99, 0.97, 0.93)        # happy warm white
-		var cold := Color(0.88, 0.92, 1.00)        # sad cool white
+		var mood_norm := (mood + 100.0) / 200.0
+		var warm := Color(0.99, 0.97, 0.93)  # happy warm white
+		var cold := Color(0.88, 0.92, 1.00)  # sad cool white
 		_target_color = cold.lerp(warm, mood_norm)
 
-	# --- Particle effects ---
+	# --- Particles ---
 	if anxiety_particles:
 		anxiety_particles.emitting = anxiety > 55.0
-
 	if sparkle_particles:
 		sparkle_particles.emitting = excitement > 65.0
 

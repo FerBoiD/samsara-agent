@@ -85,6 +85,16 @@ func send_feed() -> void:
 	send_command("feed")
 
 
+func send_drink() -> void:
+	send_command("drink")
+
+
+func send_message(text: String) -> void:
+	if text.length() == 0:
+		return
+	send_command("msg:" + text)
+
+
 # ----------------------------------------------------------
 #  INTERNAL
 # ----------------------------------------------------------

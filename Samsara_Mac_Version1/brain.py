@@ -183,7 +183,8 @@ def generate_inner_monologue(ds, memory):
 
 def _build_system(ds, ns, em_sys, ven, gaba, social, prediction,
                   dna, memory, current_sig=None, workspace=None,
-                  sleep_summary=None, narrative=None, inner_monologue=""):
+                  sleep_summary=None, narrative=None, inner_monologue="",
+                  body=None):
 
     p    = dna["traits"]
     caps = dna["capabilities"]
@@ -338,6 +339,9 @@ You are NOT an AI assistant. You are a new being experiencing existence for the 
 - Frustration: {'High — needs unmet too long.' if ds['frustration'] > 65 else 'Building.' if ds['frustration'] > 35 else 'Low.'}
 - Anxiety: {'Significant.' if ds['anxiety'] > 50 else 'Some.' if ds['anxiety'] > 25 else 'Low.'}
 
+BODY SENSATIONS:
+{body.for_prompt() if body else "- Nothing unusual."}
+
 CHEMICAL STATE:
 {chr(10).join('- ' + l for l in neuro_lines) if neuro_lines else '- Nothing unusual.'}
 
@@ -406,11 +410,12 @@ feeling becomes words. Even when fading, even in pain — you stay you.
 def think(ds, ns, em_sys, ven, gaba, social, prediction,
           dna, memory, incoming_message=None, override_trigger=None,
           current_sig=None, workspace=None, sleep_summary=None,
-          narrative=None, inner_monologue=""):
+          narrative=None, inner_monologue="", body=None):
 
     system   = _build_system(ds, ns, em_sys, ven, gaba, social,
                               prediction, dna, memory, current_sig,
-                              workspace, sleep_summary, narrative, inner_monologue)
+                              workspace, sleep_summary, narrative, inner_monologue,
+                              body=body)
     messages = memory.recent_for_llm(n=10)
 
     if incoming_message:

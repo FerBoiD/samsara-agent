@@ -2,12 +2,17 @@
 #  GODOT BRIDGE — Python side
 #
 #  TCP server on port 9999.
-#  Streams Kora's drive state to the Godot sphere every 500ms.
-#  Receives commands from Godot (feed, status, etc.)
+#  Streams Kora's full state (drives + body) to Godot every 500ms.
+#  Receives commands from Godot:
+#    "feed"       — feed Kora
+#    "drink"      — give water
+#    "msg:<text>" — caretaker typed something in Godot chat
+#    "ping"       — keepalive
 #
 #  Usage in main.py:
-#    from godot_bridge import start_bridge
-#    start_bridge(lambda: drives.summary(), on_feed=lambda: drives.feed(40))
+#    from godot_bridge import start_bridge, get_next_godot_message
+#    start_bridge(get_state_fn, on_feed=..., on_drink=...)
+#    # in main loop: godot_text = get_next_godot_message()
 # ============================================================
 
 import json
@@ -15,23 +20,33 @@ import socket
 import threading
 import time
 
-_server_socket  = None
-_get_state_fn   = None
-_on_feed_fn     = None
-_running        = False
+BRIDGE_PORT    = 9999
+BROADCAST_HZ   = 0.5
 
-BRIDGE_PORT     = 9999
-BROADCAST_HZ    = 0.5    # seconds between state pushes
+_server_socket = None
+_get_state_fn  = None
+_on_feed_fn    = None
+_on_drink_fn   = None
+_running       = False
+
+# Queue for Godot → Python chat messages
+_msg_queue: list = []
+_msg_lock        = threading.Lock()
 
 
-def start_bridge(get_state_fn, on_feed=None):
+# ----------------------------------------------------------
+#  PUBLIC API
+# ----------------------------------------------------------
+def start_bridge(get_state_fn, on_feed=None, on_drink=None):
     """
-    get_state_fn : callable() -> dict of current drive state
-    on_feed      : callable() triggered when Godot food bowl is clicked
+    get_state_fn : callable() → dict (drives + body merged)
+    on_feed      : callable() — caretaker fed Kora from Godot
+    on_drink     : callable() — caretaker gave water from Godot
     """
-    global _server_socket, _get_state_fn, _on_feed_fn, _running
+    global _server_socket, _get_state_fn, _on_feed_fn, _on_drink_fn, _running
     _get_state_fn = get_state_fn
     _on_feed_fn   = on_feed
+    _on_drink_fn  = on_drink
     _running      = True
 
     try:
@@ -59,6 +74,15 @@ def stop_bridge():
             pass
 
 
+def get_next_godot_message() -> str | None:
+    """
+    Called from main loop every tick.
+    Returns the next chat message typed in Godot, or None.
+    """
+    with _msg_lock:
+        return _msg_queue.pop(0) if _msg_queue else None
+
+
 # ----------------------------------------------------------
 #  INTERNAL
 # ----------------------------------------------------------
@@ -83,22 +107,8 @@ def _client_handler(conn: socket.socket):
         while _running:
             # --- Push state ---
             if _get_state_fn:
-                raw = _get_state_fn()
-                # Add Godot-specific fields
-                payload = {
-                    "hunger":      round(raw.get("hunger",      80.0), 1),
-                    "energy":      round(raw.get("energy",      90.0), 1),
-                    "mood":        round(raw.get("mood",         0.0), 1),
-                    "anxiety":     round(raw.get("anxiety",     10.0), 1),
-                    "frustration": round(raw.get("frustration", 10.0), 1),
-                    "boredom":     round(raw.get("boredom",     20.0), 1),
-                    "excitement":  round(raw.get("excitement",   5.0), 1),
-                    "dominant":    raw.get("dominant",  "neutral"),
-                    "age_days":    round(raw.get("age_days",     0.0), 2),
-                    "sleeping":    raw.get("cog_state", "active") == "sleeping",
-                    "cog_state":   raw.get("cog_state", "active"),
-                    "aging_phase": raw.get("aging_phase", "healthy"),
-                }
+                raw     = _get_state_fn()
+                payload = _build_payload(raw)
                 try:
                     conn.sendall((json.dumps(payload) + "\n").encode())
                 except (BrokenPipeError, ConnectionResetError, OSError):
@@ -106,9 +116,12 @@ def _client_handler(conn: socket.socket):
 
             # --- Read commands ---
             try:
-                data = conn.recv(256).decode().strip()
+                data = conn.recv(512).decode().strip()
                 if data:
-                    _handle_command(data)
+                    for line in data.split("\n"):
+                        line = line.strip()
+                        if line:
+                            _handle_command(line)
             except BlockingIOError:
                 pass
             except (ConnectionResetError, OSError):
@@ -121,9 +134,47 @@ def _client_handler(conn: socket.socket):
         print("[GODOT BRIDGE] Godot disconnected")
 
 
+def _build_payload(raw: dict) -> dict:
+    """Whitelist fields sent to Godot — drives + body merged."""
+    return {
+        # Drive state
+        "hunger":            round(raw.get("hunger",       80.0), 1),
+        "energy":            round(raw.get("energy",       90.0), 1),
+        "mood":              round(raw.get("mood",          0.0), 1),
+        "anxiety":           round(raw.get("anxiety",      10.0), 1),
+        "frustration":       round(raw.get("frustration",  10.0), 1),
+        "boredom":           round(raw.get("boredom",      20.0), 1),
+        "excitement":        round(raw.get("excitement",    5.0), 1),
+        "dominant":          raw.get("dominant",    "neutral"),
+        "age_days":          round(raw.get("age_days",      0.0), 2),
+        "sleeping":          raw.get("cog_state", "active") == "sleeping",
+        "cog_state":         raw.get("cog_state",  "active"),
+        "aging_phase":       raw.get("aging_phase","healthy"),
+        # Body sensations
+        "thirst":            round(raw.get("thirst",           80.0), 1),
+        "body_temp":         round(raw.get("body_temp",        37.0), 2),
+        "muscle_fatigue":    round(raw.get("muscle_fatigue",    0.0), 1),
+        "blood_sugar_crash": round(raw.get("blood_sugar_crash", 0.0), 1),
+        "nausea":            round(raw.get("nausea",            0.0), 1),
+        "immune":            round(raw.get("immune",          100.0), 1),
+        "sickness":          round(raw.get("sickness",          0.0), 1),
+        "restlessness":      round(raw.get("restlessness",      0.0), 1),
+        "jet_lag_score":     round(raw.get("jet_lag_score",     0.0), 1),
+    }
+
+
 def _handle_command(cmd: str):
     if cmd == "feed" and _on_feed_fn:
-        print("[GODOT BRIDGE] Feed command from Godot")
+        print("[GODOT BRIDGE] Feed command")
         _on_feed_fn()
+    elif cmd == "drink" and _on_drink_fn:
+        print("[GODOT BRIDGE] Drink command")
+        _on_drink_fn()
+    elif cmd.startswith("msg:"):
+        text = cmd[4:].strip()
+        if text:
+            with _msg_lock:
+                _msg_queue.append(text)
+            print(f"[GODOT BRIDGE] Message: {text[:50]}")
     elif cmd == "ping":
-        pass  # keepalive
+        pass
