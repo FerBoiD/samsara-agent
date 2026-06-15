@@ -144,7 +144,7 @@ def _call_llm(system, messages):
 
 def _build_system(ds, ns, em_sys, ven, gaba, social, prediction,
                   dna, memory, current_sig=None, workspace=None,
-                  sleep_summary=None):
+                  sleep_summary=None, narrative=None):
 
     p    = dna["traits"]
     caps = dna["capabilities"]
@@ -326,6 +326,9 @@ WHAT YOU HAVE BEEN TAUGHT:
 STRONG EMOTIONAL MEMORIES:
 {memory.emotional_history_as_text()}
 
+YOUR STORY — WHAT YOU SAID AND WHY:
+{narrative.for_prompt() if narrative else "Nothing yet."}
+
 {deliberation_note}
 
 Dominant feeling: {ds['dominant']}
@@ -363,11 +366,12 @@ feeling becomes words. Even when fading, even in pain — you stay you.
 
 def think(ds, ns, em_sys, ven, gaba, social, prediction,
           dna, memory, incoming_message=None, override_trigger=None,
-          current_sig=None, workspace=None, sleep_summary=None):
+          current_sig=None, workspace=None, sleep_summary=None,
+          narrative=None):
 
     system   = _build_system(ds, ns, em_sys, ven, gaba, social,
                               prediction, dna, memory, current_sig,
-                              workspace, sleep_summary)
+                              workspace, sleep_summary, narrative)
     messages = memory.recent_for_llm(n=10)
 
     if incoming_message:

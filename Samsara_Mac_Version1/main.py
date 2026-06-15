@@ -30,11 +30,12 @@ from emotions       import EmotionSystem
 from dreams         import DreamSystem
 from telemetry      import Telemetry
 from workspace      import GlobalWorkspace
+from narrative      import NarrativeSystem
 from observatory    import (start_dashboard, log_tick, log_decision,
                              log_speech, log_surprise,
                              check_milestones, generate_life_report)
 from whisper_input  import (start_continuous as start_whisper,
-                             get_speech_input, is_available as whisper_available)
+                             is_available as whisper_available)
 from telegram_bot   import (send, send_status, send_birth_notice,
                              start_listener, get_incoming)
 from config         import TICK_INTERVAL_SECONDS, DATA_DIR
@@ -66,7 +67,7 @@ def speak(text, prefix="🤖", send_tg=True, blocking=False,
 #  SLEEP HANDLING
 # ----------------------------------------------------------
 def handle_sleep(sleep_result, sleep_sys, drives, memory, neuro,
-                 emotions, dreams, dna):
+                 emotions, dreams, dna, narrative=None):
     if sleep_result == "sleeping":
         phase = sleep_sys.state["sleep_phase"]
         if phase == "light" and sleep_sys.state["ticks_asleep"] == 1:
@@ -75,6 +76,8 @@ def handle_sleep(sleep_result, sleep_sys, drives, memory, neuro,
     elif sleep_result == "consolidating":
         log("[SLEEP] Consolidating memory to DNA...")
         send("🧬 [Deep sleep — memory consolidating]")
+        if narrative:
+            narrative.synthesize_sleep_cycle(drives.summary())
 
     elif sleep_result == "rem":
         if sleep_sys.state["ticks_asleep"] % 6 != 4:
@@ -277,6 +280,7 @@ def main():
     dreams    = DreamSystem()
     workspace = GlobalWorkspace()
     telemetry = Telemetry()
+    narrative = NarrativeSystem()
 
     is_new = drives.state["age_ticks"] == 0
 
@@ -389,13 +393,13 @@ def main():
             # REM dreams
             if sleep_result == "rem":
                 handle_sleep("rem", sleep, drives, memory, neuro,
-                             emotions, dreams, dna)
+                             emotions, dreams, dna, narrative)
                 time.sleep(TICK_INTERVAL_SECONDS)
                 continue
 
             if sleep_result in ("sleeping", "consolidating", "waking"):
                 handle_sleep(sleep_result, sleep, drives, memory, neuro,
-                             emotions, dreams, dna)
+                             emotions, dreams, dna, narrative)
                 if sleep_result in ("sleeping", "consolidating"):
                     time.sleep(TICK_INTERVAL_SECONDS)
                     continue
@@ -408,7 +412,7 @@ def main():
                     pred.add_fear_association("hunger_low", "danger")
 
             # ---- INCOMING (Telegram + Voice) ----
-            incoming = get_incoming() or get_speech_input()
+            incoming = get_incoming()
 
             if incoming:
                 if incoming["type"] == "cmd":
@@ -465,7 +469,8 @@ def main():
                     response = think(ds, ns_full, emotions, ven, gaba, social, pred,
                                      dna, memory, incoming_message=human_text,
                                      current_sig=current_sig, workspace=workspace,
-                                     sleep_summary=sleep.summary())
+                                     sleep_summary=sleep.summary(),
+                                     narrative=narrative)
 
                     # GABA anger suppression (consequence learning feeds in via social)
                     gaba_attempted = response["is_anger"]
@@ -483,6 +488,7 @@ def main():
                     speak(response["text"], prefix="🤖",
                           dominant=ds["dominant"], cog_state=ds["cog_state"],
                           aging_phase=ds.get("aging_phase", "healthy"))
+                    narrative.log_speech(response["text"], ds)
                     log_speech(response["text"], "response", ds, ns_full)
                     log_decision(
                         trigger=human_text[:40],
@@ -544,7 +550,8 @@ def main():
                             response = think(
                                 ds, ns_full, emotions, ven, gaba, social, pred,
                                 dna, memory, override_trigger=prompt,
-                                workspace=workspace, sleep_summary=sleep.summary()
+                                workspace=workspace, sleep_summary=sleep.summary(),
+                                narrative=narrative
                             )
 
                             if response["is_anger"]:
@@ -566,6 +573,7 @@ def main():
                                       dominant=ds["dominant"],
                                       cog_state=ds["cog_state"],
                                       aging_phase=ds.get("aging_phase", "healthy"))
+                                narrative.log_speech(response["text"], ds)
                                 log_speech(response["text"], "spontaneous", ds, ns_full, behavior)
                                 check_milestones(ds_enriched, ns_full, emo_sum, soc_sum,
                                                  {}, gaba_sum, ven_sum,

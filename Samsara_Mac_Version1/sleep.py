@@ -18,8 +18,9 @@ from config import TICK_INTERVAL_SECONDS, data_path
 SLEEP_FILE = data_path("sleep_state.json")
 
 # Sleep cycle timing
-ACTIVE_TICKS_BEFORE_SLEEP = int((90 * 60) / TICK_INTERVAL_SECONDS)  # 90 min of activity
-SLEEP_DURATION_TICKS      = int((18 * 60) / TICK_INTERVAL_SECONDS)  # 18 min sleep
+SLEEP_MIN_ACTIVE_TICKS    = 120                                       # 20 min mandatory awake before sleep possible
+ACTIVE_TICKS_BEFORE_SLEEP = int((60 * 60) / TICK_INTERVAL_SECONDS)   # pressure ramps over 60 min window
+SLEEP_DURATION_TICKS      = int((6 * 60) / TICK_INTERVAL_SECONDS)    # 6 min sleep
 DEEP_SLEEP_MEMORY_TICKS   = 3   # deep consolidation happens in first 3 ticks of sleep
 
 
@@ -63,7 +64,11 @@ class SleepSystem:
     def _load_or_create(self):
         if os.path.exists(SLEEP_FILE):
             with open(SLEEP_FILE) as f:
-                return json.load(f)
+                state = json.load(f)
+            # Cap leftover ticks_active so a long previous session doesn't
+            # cause immediate sleep on restart
+            state["ticks_active"] = min(state["ticks_active"], SLEEP_MIN_ACTIVE_TICKS - 1)
+            return state
         return {
             "sleeping":            False,
             "sleep_phase":         None,    # "light" | "deep" | "rem"
@@ -99,18 +104,17 @@ class SleepSystem:
             s["ticks_active"] += 1
 
             # Should we fall asleep?
-            sleep_pressure = s["ticks_active"] / ACTIVE_TICKS_BEFORE_SLEEP
-            sleep_chance   = sleep_pressure * 0.15  # ramps up over time
+            # Sleep pressure only builds after mandatory awake minimum
+            if s["ticks_active"] < SLEEP_MIN_ACTIVE_TICKS:
+                sleep_chance = 0.0
+            else:
+                ramp           = s["ticks_active"] - SLEEP_MIN_ACTIVE_TICKS
+                sleep_pressure = min(1.0, ramp / ACTIVE_TICKS_BEFORE_SLEEP)
+                sleep_chance   = sleep_pressure * 0.15
 
-            # Low energy increases sleep pressure
-            if energy < 40:
-                sleep_chance += 0.1
-            if energy < 20:
-                sleep_chance += 0.2
-
-            # Circadian rhythm nudges sleep pressure
+            # Circadian rhythm — nudge only, not dominant
             circ = circadian_sleep_pressure()
-            sleep_chance += circ * 0.08   # max +0.08 at 3am, near 0 at 3pm
+            sleep_chance += circ * 0.03   # max +0.03 at 3am
 
             if not blocked and (random.random() < sleep_chance or energy < 15):
                 self._enter_sleep()
