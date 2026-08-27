@@ -40,6 +40,7 @@ from whisper_input  import (start_continuous as start_whisper,
 from telegram_bot   import (send, send_status, send_birth_notice,
                              start_listener, get_incoming)
 from godot_bridge   import start_bridge, get_next_godot_message
+from local_chat     import start_chat_ui, get_next_chat_message, push_chat_response
 from body           import BodySystem
 from config         import TICK_INTERVAL_SECONDS, DATA_DIR
 
@@ -63,6 +64,7 @@ def speak(text, prefix="🤖", send_tg=True, blocking=False,
     else:        say_nonblocking(text, dominant=dominant, cog_state=cog_state,
                                  aging_phase=aging_phase)
     if send_tg:  send(f"{prefix} {text}")
+    push_chat_response(f"{prefix} {text}")
     log(f"[{prefix}] {text}")
 
 
@@ -299,6 +301,7 @@ def main():
     # Start all communication + observation systems
     start_listener()
     start_dashboard()      # http://localhost:5001
+    start_chat_ui()        # http://localhost:5002
 
     # Godot sphere bridge — streams live drive state to port 9999
     def _godot_get_state():
@@ -459,6 +462,10 @@ def main():
                 godot_text = get_next_godot_message()
                 if godot_text:
                     incoming = {"type": "message", "text": godot_text}
+            if not incoming:
+                chat_text = get_next_chat_message()
+                if chat_text:
+                    incoming = chat_text
 
             if incoming:
                 if incoming["type"] == "cmd":
