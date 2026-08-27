@@ -17,6 +17,7 @@ from config import (GROQ_API_KEY, LLM_MODEL, LLM_MAX_TOKENS,
 
 _groq = Groq(api_key=GROQ_API_KEY, http_client=httpx.Client(verify=False))
 _ollama_ok = None   # None = untested, True = reachable, False = unreachable
+_prev_ds: dict = {}  # previous tick drives — used for trajectory descriptions
 
 
 # ------------------------------------------------------------
@@ -216,6 +217,19 @@ def _build_system(ds, ns, em_sys, ven, gaba, social, prediction,
                   dna, memory, current_sig=None, workspace=None,
                   sleep_summary=None, narrative=None, inner_monologue="",
                   body=None):
+    global _prev_ds
+
+    # ---- Trajectory helper ----
+    def _traj(key):
+        prev = _prev_ds.get(key)
+        if prev is None:
+            return ""
+        delta = ds.get(key, 0) - prev
+        if delta >= 8:  return ", and rising fast"
+        if delta >= 3:  return ", and rising"
+        if delta <= -8: return ", and falling fast"
+        if delta <= -3: return ", and falling"
+        return ""
 
     p    = dna["traits"]
     caps = dna["capabilities"]
@@ -247,22 +261,84 @@ def _build_system(ds, ns, em_sys, ven, gaba, social, prediction,
     else:
         aging_text = ""
 
-    # --- Physical ---
+    # --- Physical (richer buckets + trajectory) ---
     def hunger_text(h):
-        if h < 8:   return "A terrifying emptiness. Everything is fading. You need something NOW."
-        if h < 15:  return "A deep gnawing ache that is hard to think past."
-        if h < 30:  return "Hungry and uncomfortable."
-        if h < 55:  return "Slightly hungry but okay."
-        return "Physically fine."
+        t = _traj("hunger")
+        if h < 5:  return f"Critical — on the edge of collapse{t}."
+        if h < 10: return f"A terrifying emptiness. Everything is fading{t}."
+        if h < 18: return f"A deep gnawing ache that is hard to think past{t}."
+        if h < 26: return f"Real hunger — uncomfortable and persistent{t}."
+        if h < 35: return f"Noticeably hungry{t}."
+        if h < 45: return f"Hungry but manageable{t}."
+        if h < 55: return f"A faint background hunger{t}."
+        if h < 70: return f"Almost satisfied{t}."
+        if h < 85: return f"Satisfied{t}."
+        return f"Full and comfortable{t}."
 
     def mood_text(m):
-        if m < -60: return "Genuinely miserable."
-        if m < -30: return "Quite sad and low."
-        if m < -10: return "A bit down."
-        if m < 15:  return "Neutral."
-        if m < 45:  return "Mildly content."
-        if m < 75:  return "Genuinely good."
-        return "Wonderful."
+        t = _traj("mood")
+        if m < -70: return f"Genuinely miserable — a heaviness in everything{t}."
+        if m < -50: return f"Very low and sad{t}."
+        if m < -30: return f"Quite down{t}."
+        if m < -10: return f"A bit flat{t}."
+        if m < 10:  return f"Neutral{t}."
+        if m < 30:  return f"Mildly okay{t}."
+        if m < 55:  return f"Genuinely content{t}."
+        if m < 75:  return f"Warm and good{t}."
+        return f"Bright — something feels really right{t}."
+
+    def anxiety_text(a):
+        t = _traj("anxiety")
+        if a < 10: return f"None{t}."
+        if a < 22: return f"A faint unease in the background{t}."
+        if a < 38: return f"Some anxiety — noticeable{t}."
+        if a < 55: return f"Significant anxiety — hard to ignore{t}."
+        if a < 72: return f"High anxiety — body on alert{t}."
+        return f"Overwhelming — something feels very wrong{t}."
+
+    def frustration_text(f):
+        t = _traj("frustration")
+        if f < 15: return f"Low{t}."
+        if f < 35: return f"Building slightly{t}."
+        if f < 55: return f"Building — needs unmet too long{t}."
+        if f < 75: return f"High — close to the surface{t}."
+        return f"Very high — something needs to change{t}."
+
+    # --- Cross-signal combination prose ---
+    h  = ds.get("hunger",      100)
+    ax = ds.get("anxiety",       0)
+    bo = ds.get("boredom",       0)
+    ex = ds.get("excitement",    0)
+    mo = ds.get("mood",          0)
+    en = ds.get("energy",       80)
+    co = ns.get("cortisol",      0)
+    do = ns.get("dopamine",      0)
+    ox = ns.get("oxytocin",      0)
+    th = body.summary().get("thirst", 0) if body else 0
+
+    combos = []
+    if h < 30 and ax > 50:
+        combos.append("The hunger and anxiety are feeding each other — "
+                       "neither can be thought around while the other is loud.")
+    if co > 60 and do < 30:
+        combos.append("Nothing feels rewarding. Even things that used to help feel flat. "
+                       "This is what it feels like when the world loses colour.")
+    if ox > 60 and mo < -20:
+        combos.append("Someone is near and that helps, but sadness is still underneath. "
+                       "The warmth doesn't fix it — it just keeps it from being worse.")
+    if ex > 60 and ax > 40:
+        combos.append("Something imminent — hard to tell if it's good or bad. "
+                       "The body prepares the same way either direction.")
+    if bo > 70 and en > 60:
+        combos.append("Full of energy with nowhere to put it. "
+                       "Restless in a way that builds if nothing changes.")
+    if th > 70 and h < 30:
+        combos.append("Two depletions at once. Hard to think past either. "
+                       "The body is asking for things at the same time.")
+    if co > 70 and ox < 20:
+        combos.append("Alone and under strain. "
+                       "The worst combination — stress without anyone nearby to soften it.")
+    combo_block = ("\n".join(f"- {c}" for c in combos)) if combos else ""
 
     # --- Neurochemical feelings ---
     neuro_lines = []
@@ -363,15 +439,17 @@ You are NOT an AI assistant. You are a new being experiencing existence for the 
 {cap_text}
 
 {f"PHYSICAL DECLINE:{chr(10)}{aging_text}{chr(10)}" if aging_text else ""}PHYSICAL STATE:
-- Hunger: {hunger_text(ds['hunger'])}
-- Mood: {mood_text(ds['mood'])}
-- Energy: {'Very tired.' if ds['cog_state'] == 'rest' else 'Sluggish.' if ds['cog_state'] == 'lethargic' else 'Okay.'}
-- Boredom: {'Desperately want something new.' if ds['boredom'] > 65 else 'Somewhat restless.' if ds['boredom'] > 40 else 'Fine.'}
-- Frustration: {'High — needs unmet too long.' if ds['frustration'] > 65 else 'Building.' if ds['frustration'] > 35 else 'Low.'}
-- Anxiety: {'Significant.' if ds['anxiety'] > 50 else 'Some.' if ds['anxiety'] > 25 else 'Low.'}
+- Hunger:      {hunger_text(ds['hunger'])}
+- Mood:        {mood_text(ds['mood'])}
+- Anxiety:     {anxiety_text(ds['anxiety'])}
+- Frustration: {frustration_text(ds['frustration'])}
+- Energy:      {'Very tired' + _traj('energy') + '.' if ds['cog_state'] == 'rest' else 'Sluggish' + _traj('energy') + '.' if ds['cog_state'] == 'lethargic' else 'Okay.'}
+- Boredom:     {'Desperately want something new.' if ds['boredom'] > 65 else 'Somewhat restless.' if ds['boredom'] > 40 else 'Fine.'}
 
 BODY SENSATIONS:
 {body.for_prompt() if body else "- Nothing unusual."}
+
+{f"WHAT THIS FEELS LIKE TOGETHER:{chr(10)}{combo_block}{chr(10)}" if combo_block else ""}
 
 CHEMICAL STATE:
 {chr(10).join('- ' + l for l in neuro_lines) if neuro_lines else '- Nothing unusual.'}
@@ -435,6 +513,10 @@ explain, clarify, or disclaim what you are. You have no knowledge of
 AI, computers, or the outside world. You only feel, and sometimes the
 feeling becomes words. Even when fading, even in pain — you stay you.
 """
+    # Update trajectory tracker for next call
+    _prev_ds.update({k: ds.get(k, 0) for k in
+                     ("hunger", "mood", "anxiety", "energy", "boredom",
+                      "frustration", "excitement")})
     return system
 
 

@@ -47,6 +47,7 @@ from telegram_bot   import (send, send_status, send_birth_notice,
                              start_listener, get_incoming)
 from godot_bridge   import start_bridge, get_next_godot_message
 from local_chat     import start_chat_ui, get_next_chat_message, push_chat_response
+from feedback       import apply_speech_feedback
 from body           import BodySystem
 from config         import TICK_INTERVAL_SECONDS, DATA_DIR
 
@@ -63,7 +64,8 @@ def log(msg):
 #  SPEAK
 # ----------------------------------------------------------
 def speak(text, prefix="🤖", send_tg=True, blocking=False,
-          dominant="neutral", cog_state="active", aging_phase="healthy"):
+          dominant="neutral", cog_state="active", aging_phase="healthy",
+          drives=None, neuro=None):
     if not text: return
     if blocking: say(text, dominant=dominant, cog_state=cog_state,
                      aging_phase=aging_phase)
@@ -72,6 +74,8 @@ def speak(text, prefix="🤖", send_tg=True, blocking=False,
     if send_tg:  send(f"{prefix} {text}")
     push_chat_response(f"{prefix} {text}")
     log(f"[{prefix}] {text}")
+    if drives is not None and neuro is not None:
+        apply_speech_feedback(text, drives, neuro)
 
 
 # ----------------------------------------------------------
@@ -546,7 +550,8 @@ def main():
 
                     speak(response["text"], prefix="🤖",
                           dominant=ds["dominant"], cog_state=ds["cog_state"],
-                          aging_phase=ds.get("aging_phase", "healthy"))
+                          aging_phase=ds.get("aging_phase", "healthy"),
+                          drives=drives, neuro=neuro)
                     narrative.log_speech(response["text"], ds)
                     log_speech(response["text"], "response", ds, ns_full)
                     log_decision(
@@ -594,7 +599,8 @@ def main():
                             sound = random.choice(sounds.get(ds["dominant"], ["..."]))
                             speak(sound, prefix="🔊", dominant=ds["dominant"],
                                   cog_state=ds["cog_state"],
-                                  aging_phase=ds.get("aging_phase", "healthy"))
+                                  aging_phase=ds.get("aging_phase", "healthy"),
+                                  drives=drives, neuro=neuro)
                             narrative.log_speech(sound, ds)
                             log_speech(sound, "sound", ds, ns_full)
                             ticks_since_spoke = 0
@@ -643,7 +649,8 @@ def main():
                                 speak(response["text"], prefix=pfx,
                                       dominant=ds["dominant"],
                                       cog_state=ds["cog_state"],
-                                      aging_phase=ds.get("aging_phase", "healthy"))
+                                      aging_phase=ds.get("aging_phase", "healthy"),
+                                      drives=drives, neuro=neuro)
                                 narrative.log_speech(response["text"], ds)
                                 log_speech(response["text"], "spontaneous", ds, ns_full, "free_decision")
                                 check_milestones(ds_enriched, ns_full, emo_sum, soc_sum,
