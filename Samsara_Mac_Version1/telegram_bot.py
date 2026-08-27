@@ -26,6 +26,7 @@ _ALLOWED_CHAT_IDS = {
 
 # Thread-safe queue for incoming messages from your phone
 _incoming = []
+_telegram_enabled = True   # set False if startup fails (blocked by firewall)
 
 # Persistent event loop for all send operations
 # This fixes the "Event loop is closed" RuntimeError on Mac
@@ -65,6 +66,8 @@ async def _async_send(text):
 def send(text):
     """Send a message to your phone. Thread-safe, no event loop errors."""
     print(f"[TELEGRAM →] {text}")
+    if not _telegram_enabled:
+        return
     try:
         loop = _get_send_loop()
         future = asyncio.run_coroutine_threadsafe(_async_send(text), loop)
@@ -169,10 +172,15 @@ def get_incoming():
 def start_listener():
     """Start Telegram polling in a background daemon thread."""
     def run():
-        app = Application.builder().token(TELEGRAM_TOKEN).request(_no_ssl_request()).build()
-        app.add_handler(MessageHandler(filters.TEXT, _handle_message))
-        print("[TELEGRAM] Listening...")
-        app.run_polling(allowed_updates=["message"],stop_signals=None)
+        global _telegram_enabled
+        try:
+            app = Application.builder().token(TELEGRAM_TOKEN).request(_no_ssl_request()).build()
+            app.add_handler(MessageHandler(filters.TEXT, _handle_message))
+            print("[TELEGRAM] Listening...")
+            app.run_polling(allowed_updates=["message"], stop_signals=None)
+        except Exception as e:
+            _telegram_enabled = False
+            print(f"[TELEGRAM] Disabled — blocked by firewall or network. Use http://localhost:5002 to chat. ({type(e).__name__})")
 
     t = threading.Thread(target=run, daemon=True)
     t.start()
