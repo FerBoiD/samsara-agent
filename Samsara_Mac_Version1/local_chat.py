@@ -102,7 +102,16 @@ class _Handler(BaseHTTPRequestHandler):
             with _lock:
                 _msg_id += 1
                 _messages.append({"id": _msg_id, "sender": "you", "text": text})
-            _incoming.put({"type": "message", "text": text})
+            # Parse slash commands the same way Telegram does
+            lower = text.lower().strip()
+            if lower in ("/feed", "/status", "/reset"):
+                _incoming.put({"type": "cmd", "cmd": lower[1:]})
+            elif lower.startswith("/teach ") and "=" in lower:
+                rest = text[7:].strip()
+                key, val = rest.split("=", 1)
+                _incoming.put({"type": "cmd", "cmd": "teach", "key": key.strip(), "value": val.strip()})
+            else:
+                _incoming.put({"type": "message", "text": text})
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
