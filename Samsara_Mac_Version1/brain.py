@@ -10,10 +10,11 @@
 # ============================================================
 
 import re
+import httpx
 from groq import Groq
 from config import GROQ_API_KEY, LLM_MODEL, LLM_MAX_TOKENS
 
-client = Groq(api_key=GROQ_API_KEY)
+client = Groq(api_key=GROQ_API_KEY, http_client=httpx.Client(verify=False))
 
 
 # ------------------------------------------------------------

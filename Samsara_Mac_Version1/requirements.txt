@@ -16,7 +16,8 @@ python-dotenv
 # Voice input — speak to Kora instead of typing (optional)
 # If this fails, Kora still works fine via Telegram only
 openai-whisper
-pyaudio
+# pyaudio — disabled on Windows (needs C++ build tools, and voice input is off anyway)
+# To enable later: pip install pipwin && pipwin install pyaudio
 numpy
 
 # TTS — cross-platform voice output (Windows SAPI5 / Mac NSSpeech / Linux espeak)

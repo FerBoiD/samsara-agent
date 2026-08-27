@@ -7,8 +7,12 @@
 import asyncio
 import threading
 import time
+import warnings
+warnings.filterwarnings("ignore")
+
 from telegram import Bot
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.request import HTTPXRequest
 
 from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 
@@ -44,8 +48,11 @@ def _get_send_loop():
         return _send_loop
 
 
+def _no_ssl_request():
+    return HTTPXRequest(httpx_kwargs={"verify": False})
+
 async def _async_send(text):
-    bot = Bot(token=TELEGRAM_TOKEN)
+    bot = Bot(token=TELEGRAM_TOKEN, request=_no_ssl_request())
     # Broadcast to all allowed caretakers
     for chat_id in _ALLOWED_CHAT_IDS:
         try:
@@ -162,7 +169,7 @@ def get_incoming():
 def start_listener():
     """Start Telegram polling in a background daemon thread."""
     def run():
-        app = Application.builder().token(TELEGRAM_TOKEN).build()
+        app = Application.builder().token(TELEGRAM_TOKEN).request(_no_ssl_request()).build()
         app.add_handler(MessageHandler(filters.TEXT, _handle_message))
         print("[TELEGRAM] Listening...")
         app.run_polling(allowed_updates=["message"],stop_signals=None)

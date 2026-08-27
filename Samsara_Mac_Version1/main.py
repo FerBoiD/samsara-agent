@@ -10,6 +10,12 @@
 # ============================================================
 
 import time, random, logging, os, sys, json
+import ssl, warnings
+
+# Corporate network fix — office proxy intercepts SSL with its own cert.
+# Disable verification so Telegram and Groq can connect.
+ssl._create_default_https_context = ssl._create_unverified_context
+warnings.filterwarnings("ignore", message="Unverified HTTPS")
 
 from drives         import DriveSystem
 from memory         import Memory
