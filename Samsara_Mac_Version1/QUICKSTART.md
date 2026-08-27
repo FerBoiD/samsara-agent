@@ -14,12 +14,35 @@ Optional: free audio files from freesound.org (ambient sounds, stomach growl, fo
 
 ---
 
-## First Time Setup
+## First Time Setup — Windows
 
-1. Fill in `config.py` with your keys:
+1. Install Python 3.9+ from python.org — tick **"Add Python to PATH"** during install.
+
+2. Fill in `config.py` with your keys:
    - GROQ_API_KEY    →  console.groq.com  (free — no credit card)
    - TELEGRAM_TOKEN  →  @BotFather on Telegram
    - TELEGRAM_CHAT_ID →  @userinfobot on Telegram
+
+3. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+4. If pyaudio fails (voice input, optional):
+   ```
+   pip install pipwin
+   pipwin install pyaudio
+   ```
+   Voice input is optional — Kora runs fine on Telegram + Godot chat without it.
+
+5. TTS (Kora's voice) uses Windows built-in SAPI5 — no extra install needed.
+   To pick a different Windows voice: open Settings → Time & Language → Speech → Manage voices.
+
+---
+
+## First Time Setup — Mac
+
+1. Fill in `config.py` with your keys.
 
 2. Install dependencies:
    ```

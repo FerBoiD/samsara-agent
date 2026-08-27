@@ -19,9 +19,15 @@ openai-whisper
 pyaudio
 numpy
 
-# If pyaudio fails on Mac, run these first:
-#   brew install portaudio
-#   pip3 install pyaudio
+# TTS — cross-platform voice output (Windows SAPI5 / Mac NSSpeech / Linux espeak)
+pyttsx3
+
+# If pyaudio fails on Mac:
+#   brew install portaudio && pip install pyaudio
+#
+# If pyaudio fails on Windows:
+#   pip install pipwin && pipwin install pyaudio
+#   (or download the .whl from https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio)
 
 # NOTE: anthropic package is no longer needed.
 # We switched from Claude Haiku (paid) to Groq Llama 3.3 70B (free).
