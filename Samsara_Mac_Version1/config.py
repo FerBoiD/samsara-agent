@@ -131,6 +131,13 @@ ASSOCIATIVE_MAX  = 60
 LLM_MODEL        = "llama-3.3-70b-versatile"  # Groq free model
 LLM_MAX_TOKENS   = 150   # short responses — keep costs zero and speed fast
 
+# --- LOCAL LLM (Ollama) ---
+# Used as primary brain when available — works behind any firewall.
+# Install: https://ollama.com  then: ollama pull llama3.2:3b
+# Falls back to Groq automatically if Ollama isn't running.
+OLLAMA_HOST  = "http://localhost:11434"
+OLLAMA_MODEL = "llama3.2:3b"   # ~2GB, runs on any laptop
+
 # --- LOGGING / OBSERVABILITY ---
 TELEMETRY_FILE   = data_path("telemetry.csv")
 SESSION_REPORT   = data_path("session_report.json")

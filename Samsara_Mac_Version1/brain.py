@@ -12,9 +12,11 @@
 import re
 import httpx
 from groq import Groq
-from config import GROQ_API_KEY, LLM_MODEL, LLM_MAX_TOKENS
+from config import (GROQ_API_KEY, LLM_MODEL, LLM_MAX_TOKENS,
+                    OLLAMA_HOST, OLLAMA_MODEL)
 
-client = Groq(api_key=GROQ_API_KEY, http_client=httpx.Client(verify=False))
+_groq = Groq(api_key=GROQ_API_KEY, http_client=httpx.Client(verify=False))
+_ollama_ok = None   # None = untested, True = reachable, False = unreachable
 
 
 # ------------------------------------------------------------
@@ -133,8 +135,20 @@ _STAY_IN_CHARACTER_NUDGE = (
 )
 
 
-def _call_llm(system, messages):
-    resp = client.chat.completions.create(
+def _call_ollama(system, messages):
+    payload = {
+        "model": OLLAMA_MODEL,
+        "messages": [{"role": "system", "content": system}] + messages,
+        "stream": False,
+        "options": {"num_predict": LLM_MAX_TOKENS, "temperature": 0.9},
+    }
+    r = httpx.post(f"{OLLAMA_HOST}/api/chat", json=payload, timeout=60)
+    r.raise_for_status()
+    return r.json()["message"]["content"].strip()
+
+
+def _call_groq(system, messages):
+    resp = _groq.chat.completions.create(
         model=LLM_MODEL,
         max_tokens=LLM_MAX_TOKENS,
         temperature=0.9,
@@ -143,16 +157,30 @@ def _call_llm(system, messages):
     return resp.choices[0].message.content.strip()
 
 
+def _call_llm(system, messages):
+    global _ollama_ok
+    # Try Ollama first (local — no internet, no firewall issues)
+    if _ollama_ok is not False:
+        try:
+            text = _call_ollama(system, messages)
+            if _ollama_ok is None:
+                print(f"[BRAIN] Ollama online ({OLLAMA_MODEL}) — using local brain")
+            _ollama_ok = True
+            return text
+        except Exception as e:
+            if _ollama_ok is None:
+                print(f"[BRAIN] Ollama not running — falling back to Groq ({e})")
+            _ollama_ok = False
+    # Groq fallback (needs internet / hotspot)
+    return _call_groq(system, messages)
+
+
 def generate_inner_monologue(ds, memory):
     """
-    Generate Kora's raw inner thought using local Ollama (llama3.2:3b).
-    This is what Kora is 'thinking' before it speaks — exists before speech.
-    Falls back silently if Ollama isn't installed or running.
-    Called from main.py before free-time think() calls.
+    Kora's raw inner thought — a 3-8 word fragment before she speaks.
+    Uses Ollama locally. Falls back silently if Ollama isn't running.
     """
     try:
-        import ollama as _ollama
-        # Build a brief memory context from recent messages
         recent = memory.recent_for_llm(n=3)
         mem_text = " | ".join(
             f"{m['role']}: {m['content'][:60]}" for m in recent
@@ -168,12 +196,14 @@ def generate_inner_monologue(ds, memory):
             f"'warm now but still' | 'why does it keep ending'\n"
             f"Fragment:"
         )
-        resp = _ollama.generate(
-            model="llama3.2:3b",
-            prompt=prompt,
-            options={"num_predict": 20, "temperature": 0.95, "stop": ["\n", "."]}
+        r = httpx.post(
+            f"{OLLAMA_HOST}/api/generate",
+            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False,
+                  "options": {"num_predict": 20, "temperature": 0.95,
+                              "stop": ["\n", "."]}},
+            timeout=15,
         )
-        thought = resp["response"].strip().strip('"').strip("'")
+        thought = r.json().get("response", "").strip().strip('"').strip("'")
         words = thought.split()
         if len(words) > 10:
             thought = " ".join(words[:10])
