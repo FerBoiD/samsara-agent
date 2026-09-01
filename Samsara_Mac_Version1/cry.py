@@ -11,7 +11,7 @@
 #  - SCREAM: hunger <10%, dying
 # ============================================================
 
-import subprocess, threading, time
+import threading, time
 from config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 
 # Thresholds
@@ -25,18 +25,19 @@ CRY_COOLDOWN    = 120  # seconds between same-level cries
 
 
 def _make_sound(sound_type):
-    """Generate distress sounds on Mac."""
-    sounds = {
-        "whimper": ["say", "-v", "Samantha", "-r", "120", "mmm... mmm..."],
-        "cry":     ["say", "-v", "Samantha", "-r", "100", "...something is wrong... something is very wrong..."],
-        "scream":  ["say", "-v", "Samantha", "-r", "90",  "please... please... I need... please..."],
+    """Generate distress sounds via pyttsx3 (cross-platform)."""
+    texts = {
+        "whimper": "mmm... mmm...",
+        "cry":     "...something is wrong... something is very wrong...",
+        "scream":  "please... please... I need... please...",
     }
-    cmd = sounds.get(sound_type)
-    if cmd:
-        threading.Thread(
-            target=lambda: subprocess.run(cmd, capture_output=True),
-            daemon=True
-        ).start()
+    text = texts.get(sound_type)
+    if text:
+        try:
+            from speaker import say_nonblocking
+            say_nonblocking(text, emotion="sad")
+        except Exception as e:
+            print(f"[CRY] Sound error: {e}")
 
 
 def _send_alarm(level, drives_summary):
