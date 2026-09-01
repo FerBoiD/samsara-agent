@@ -38,6 +38,7 @@ def log_tick(drives, neuro, emotions, sleep, vmat2, ven, gaba, prediction, socia
         "aging_factor":drives.get("aging_factor", 0.0),
         # Drives
         "hunger":    drives.get("hunger", 0),
+        "thirst":    drives.get("thirst", 0),
         "energy":    drives.get("energy", 0),
         "boredom":   drives.get("boredom", 0),
         "mood":      drives.get("mood", 0),
