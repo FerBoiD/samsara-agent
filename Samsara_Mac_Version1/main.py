@@ -429,7 +429,8 @@ def main():
             ven_sum   = ven.summary()
             gaba_sum  = gaba.summary()
 
-            log_tick(ds, ns_full, emo_sum, sleep_sum,
+            ds_with_body = {**ds, **body.summary()}
+            log_tick(ds_with_body, ns_full, emo_sum, sleep_sum,
                      {}, ven_sum, gaba_sum, pred_sum, soc_sum)
             log_surprise(surprise, is_delight, is_fear, ds)
             # Pass circadian + prediction data into drives for milestone detection

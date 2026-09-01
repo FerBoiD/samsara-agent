@@ -85,9 +85,9 @@ class BodySystem:
         hunger   = ds.get("hunger", 80.0)
 
         # --- THIRST ---
-        thirst_drain = 0.12 if sleeping else 0.22
+        thirst_drain = 0.04 if sleeping else 0.07
         # Stress sweating: cortisol speeds thirst depletion
-        thirst_drain += ns.get("cortisol", 0) / 100 * 0.08
+        thirst_drain += ns.get("cortisol", 0) / 100 * 0.03
         s["thirst"] = max(0.0, s["thirst"] - thirst_drain)
 
         # --- BODY TEMPERATURE (circadian + stress) ---
@@ -189,11 +189,11 @@ class BodySystem:
 
         # Thirst
         thirst = s["thirst"]
-        if thirst < 18:
+        if thirst < 12:
             lines.append(
                 f"Mouth completely dry, throat burning — thirst critical ({thirst:.0f}%)."
             )
-        elif thirst < 38:
+        elif thirst < 25:
             lines.append(f"Noticeably thirsty ({thirst:.0f}%).")
 
         # Temperature

@@ -420,7 +420,7 @@ async function load() {
 
     <div class="panel">
       <h2>💊 Drives</h2>
-      ${[['Hunger', d.hunger, hungerColor],['Energy', d.energy, '#4a90d9'],
+      ${[['Hunger', d.hunger, hungerColor],['Thirst', d.thirst, d.thirst<25?'#e05050':d.thirst<50?'#4ab8e8':'#4a90d9'],['Energy', d.energy, '#4a90d9'],
          ['Boredom', d.boredom, '#9060c0'],['Mood', (d.mood+100)/2, moodColor],
          ['Frustration', d.frustration, '#e05050'],['Anxiety', d.anxiety, '#e8a040'],
          ['Excitement', d.excitement, '#50d890']].map(([n,v,c]) =>
